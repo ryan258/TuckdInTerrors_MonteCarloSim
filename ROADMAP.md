@@ -34,34 +34,21 @@ This document outlines the development phases for building the "Tuck'd-In Terror
 
 **Objective:** Build the fundamental engine that can process turns, manage resources, and execute basic card plays according to "Tuck'd-In Terrors" rules.
 
-- [ ] **2.1. Define GameState Class (`game_state.py`)**
-  - [ ] Implement the class to hold all dynamic game information (deck, hand, discard, play area, resources, turn, objective progress, etc.).
-- [ ] **2.2. Implement Game Setup Module (`game_setup.py`)**
-  - [ ] Function to initialize a `GameState` instance based on a loaded `ObjectiveCard` and `Card` definitions.
-  - [ ] Implement First Memory determination and placement logic as per objective rules.
-  - [ ] Handle deck construction (including card rotations), initial hand draw, and starting resources.
-- [ ] **2.3. Implement Turn Structure Engine (`turn_manager.py`)**
-  - [ ] `begin_turn_phase` logic (mana gain, untap cards, draw card, initial Nightmare Creep application).
-  - [ ] `main_phase` structure (will primarily be driven by AI actions later).
-  - [ ] `end_turn_phase` logic (lose unspent mana, resolve end-of-turn effects, hand size check, advance turn).
-- [ ] **2.4. Implement Basic Action & Resource Management (`action_resolver.py`)**
-  - [ ] Functions for playing cards (Free Toy play, playing cards by paying mana).
-  - [ ] Basic resource spending/gaining functions (mana, spirit tokens, memory tokens).
-  - [ ] Tapping/Untapping cards.
-- [ ] **2.5. Implement Initial Effect Engine (Simplified) (`effect_engine.py`)**
-  - [ ] `resolve_effect` function structure.
-  - [ ] Implement a few simple `EffectActionType`s (e.g., DRAW_CARDS, CREATE_SPIRIT_TOKENS).
-  - [ ] Basic condition checking based on `EffectConditionType`.
-- [ ] **2.6. Implement Basic Nightmare Creep Module (`nightmare_creep.py`)**
-  - [ ] Function to apply Nightmare Creep effects based on the current `ObjectiveCard`'s `nightmare_creep_effect` logic (for simple, non-escalating cases initially).
-- [ ] **2.7. Implement Basic Win/Loss Condition Checker (`win_loss_checker.py`)**
-  - [ ] Check for Nightfall (turn limit reached).
-  - [ ] Implement logic for 1-2 simple `ObjectiveCard` win conditions based on their `ObjectiveLogicComponent` definitions.
-- [ ] **2.8. Write Unit Tests (`tests/game_logic/`)**
-  - [ ] Test game setup for different objectives.
-  - [ ] Test turn progression and phase transitions.
-  - [ ] Test simple actions and resource changes.
-  - [ ] Test basic win/loss condition triggering.
+- [x] **2.1. Define GameState Class (`game_state.py`)**
+- [x] **2.2. Implement Game Setup Module (`game_setup.py`)**
+- [x] **2.3. Implement Turn Structure Engine (`turn_manager.py`)** (Now fully integrated with other Phase 2 modules)
+- [x] **2.4. Implement Basic Action & Resource Management (`action_resolver.py`)** (Now fully integrated with EffectEngine)
+- [x] **2.5. Implement Initial Effect Engine (Simplified) (`effect_engine.py`)**
+- [x] **2.6. Implement Basic Nightmare Creep Module (`nightmare_creep.py`)** (Now fully integrated with TurnManager & EffectEngine)
+- [x] **2.7. Implement Basic Win/Loss Condition Checker (`win_loss_checker.py`)** (Now fully integrated with TurnManager)
+- [x] **2.8. Write Unit Tests (`tests/game_logic/`)**
+  - [x] `test_game_state.py`
+  - [x] Test game setup for different objectives (`test_game_setup.py`).
+  - [x] Test turn progression and phase transitions (`test_turn_manager.py`).
+  - [x] Test simple actions and resource changes (`test_action_resolver.py`).
+  - [x] Test basic effect resolution (`test_effect_engine.py`).
+  - [x] Test Nightmare Creep application (`test_nightmare_creep.py`).
+  - [x] Test basic win/loss condition triggering (`test_win_loss_checker.py`).
 
 ---
 

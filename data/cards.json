@@ -117,5 +117,101 @@
     "quantity_in_deck": 2,
     "power": null,
     "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCTOY002",
+    "name": "Ghost Doll With Hollow Eyes",
+    "card_type": "TOY",
+    "cost": 1,
+    "text_flavor": "Porcelain tears never fall. They pool perfectly round on your bedroom floor.",
+    "text_rules": "✦ When leaves play, create a Spirit ✧ If would move from discard to exile, create a Spirit and return to hand instead",
+    "sub_types": ["HAUNT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_LEAVE_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "is_echo_effect": false,
+        "description": "When leaves play, create a Spirit."
+      },
+      {
+        "trigger": "BEFORE_THIS_CARD_MOVES_ZONES",
+        "conditions": [
+          {
+            "condition_type": "IS_MOVING_FROM_ZONE",
+            "params": { "zone": "DISCARD" }
+          },
+          {
+            "condition_type": "IS_MOVING_TO_ZONE",
+            "params": { "zone": "EXILE" }
+          }
+        ],
+        "actions": [
+          { "action_type": "CANCEL_IMPENDING_MOVE", "params": {} },
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } },
+          {
+            "action_type": "RETURN_THIS_CARD_TO_HAND",
+            "params": { "from_zone_override": "DISCARD" }
+          }
+        ],
+        "is_echo_effect": true,
+        "description": "If this card is First Memory and would move from discard to exile, instead create a Spirit and return this card to your hand."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCSPL003",
+    "name": "Fluffstorm of Forgotten Names",
+    "card_type": "SPELL",
+    "cost": 3,
+    "text_flavor": "The air fills with whispers—each one a name you once knew. For a moment, they remember you too, before dissolving back into the spaces between thoughts.",
+    "text_rules": "Create a Spirit. Storm. (Create an additional Spirit for each spell cast before this turn) ✧ First Spirit gains \"Sacrifice: ❤\"",
+    "sub_types": [],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "Create a Spirit."
+      },
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "CREATE_SPIRITS_FROM_STORM_COUNT",
+            "params": { "amount_per_storm": 1 }
+          }
+        ],
+        "description": "Storm. (Create an additional Spirit for each spell cast before this turn)."
+      },
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [
+          { "condition_type": "IS_FIRST_MEMORY_IN_PLAY", "params": {} }
+        ],
+        "actions": [
+          {
+            "action_type": "EMPOWER_RECENTLY_CREATED_SPIRITS",
+            "params": {
+              "count_to_empower": 1,
+              "empowerment_type": "GAIN_ABILITY_SACRIFICE_FOR_MEMORY_TOKEN"
+            }
+          }
+        ],
+        "is_echo_effect": false,
+        "description": "✧ If your First Memory (Toy) is in play, the first Spirit created by this spell resolution gains 'Sacrifice: Create 1 Memory Token (❤)'."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
   }
 ]

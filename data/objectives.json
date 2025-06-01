@@ -16,7 +16,7 @@
     },
     "first_memory_setup": {
       "component_type": "CHOOSE_TOY_FROM_HAND_PLACE_IN_PLAY",
-      "params": {},
+      "params": { "designated_first_memory_id": "TCTOY001" },
       "description": "During setup, choose a Toy from your hand to be your First Memory. Mark it with the First Memory marker and place it face-up in play before the game begins."
     },
     "first_memory_ongoing_effects": [],
@@ -113,7 +113,7 @@
     "setup_instructions": {
       "component_type": "CUSTOM_GAME_SETUP",
       "params": {
-        "start_cards_in_play": ["TCTOY_GHOST_DOLL_PLACEHOLDER"],
+        "start_cards_in_play": ["TCTOY002"],
         "conditional_deck_search": {
           "card_id_or_name_to_search": "TCSPL_FLUFFSTORM_PLACEHOLDER",
           "condition_before_turn": 3
