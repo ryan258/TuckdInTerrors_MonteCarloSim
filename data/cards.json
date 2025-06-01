@@ -1,3 +1,121 @@
-{
-  "comment": "Card definitions will go here in JSON format."
-}
+[
+  {
+    "card_id": "TCTOY001",
+    "name": "Toy Cow With Bell That Never Rings",
+    "card_type": "TOY",
+    "cost": 2,
+    "text_flavor": "Her stitched eyes follow you across the room. Her bell stays silent, even when she moves.",
+    "text_rules": "Haunt . When Toy Cow returns from discard - create a Spirit. Echo: When this enters play, create a Spirit. As Nightmare Creeps : Browse 2 .",
+    "sub_types": ["HAUNT", "BROWSE_SEARCH"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_LEAVE_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "Haunt: When this leaves play, create a Spirit."
+      },
+      {
+        "trigger": "ON_ENTER_PLAY_FROM_DISCARD",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "When Toy Cow returns from discard - create a Spirit."
+      },
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "is_echo_effect": true,
+        "description": "Echo: When this enters play, create a Spirit."
+      },
+      {
+        "trigger": "WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER",
+        "conditions": [],
+        "actions": [{ "action_type": "BROWSE_DECK", "params": { "count": 2 } }],
+        "description": "As Nightmare Creeps: Browse 2."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCSPL001",
+    "name": "Echoes of Bedtime Stories Never Finished",
+    "card_type": "SPELL",
+    "cost": 1,
+    "text_flavor": "Words linger after the book closes. Each remembering changes the ending—heroes become monsters in darkness.",
+    "text_rules": "Draw 3 cards ✧ If First Memory is in play, 🔍2 after drawing",
+    "sub_types": ["BROWSE_SEARCH"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [{ "action_type": "DRAW_CARDS", "params": { "amount": 3 } }],
+        "description": "Draw 3 cards."
+      },
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [
+          { "condition_type": "IS_FIRST_MEMORY_IN_PLAY", "params": {} }
+        ],
+        "actions": [{ "action_type": "BROWSE_DECK", "params": { "count": 2 } }],
+        "is_echo_effect": true,
+        "description": "If First Memory is in play, 🔍2 after drawing."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCRIT001",
+    "name": "Recurring Cuddles That Leave Bruises",
+    "card_type": "RITUAL",
+    "cost": 2,
+    "text_flavor": "The tighter the squeeze, the more faded the memory. Love leaves marks.",
+    "text_rules": "✂️ Sacrifice a Toy: Return this to hand, then reanimate a Toy ✧ If First Memory is reanimated, ❤ ⚡ Once per turn",
+    "sub_types": ["SACRIFICE", "REANIMATE"],
+    "effect_logic_list": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [
+          {
+            "cost_type": "SACRIFICE_FROM_PLAY",
+            "params": {
+              "filter_card_type": "TOY",
+              "count": 1
+            }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "RETURN_THIS_CARD_TO_HAND",
+            "params": {}
+          },
+          {
+            "action_type": "CHOOSE_AND_REANIMATE_TOY_WITH_FM_BONUS",
+            "params": {
+              "zone_to_choose_from": "DISCARD",
+              "fm_bonus_action": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              }
+            }
+          }
+        ],
+        "is_once_per_turn": true,
+        "description": "Sacrifice a Toy: Return this to hand, then reanimate a Toy. If First Memory is reanimated, create ❤. Once per turn."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  }
+]

@@ -1,3 +1,139 @@
-{
-  "comment": "Objective definitions will go here in JSON format."
-}
+[
+  {
+    "objective_id": "OBJ01_THE_FIRST_NIGHT",
+    "title": "The First Night",
+    "difficulty": "Easy",
+    "flavor_text": "The first whispers are always the softest, but they echo the longest.",
+    "primary_win_condition": {
+      "component_type": "PLAY_X_DIFFERENT_TOYS_AND_CREATE_Y_SPIRITS",
+      "params": { "toys_needed": 4, "spirits_needed": 4 },
+      "description": "Play 4 different Toys and create 4 Spirits."
+    },
+    "alternative_win_condition": {
+      "component_type": "GENERATE_X_MANA_FROM_CARD_EFFECTS",
+      "params": { "mana_needed": 5 },
+      "description": "Generate 5 total mana using card effects (in addition to normal turn mana gain)."
+    },
+    "first_memory_setup": {
+      "component_type": "CHOOSE_TOY_FROM_HAND_PLACE_IN_PLAY",
+      "params": {},
+      "description": "During setup, choose a Toy from your hand to be your First Memory. Mark it with the First Memory marker and place it face-up in play before the game begins."
+    },
+    "first_memory_ongoing_effects": [],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 5,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "PLAYER_CHOICE",
+                "params": {
+                  "choice_id": "NC_FIRST_NIGHT_CHOICE",
+                  "choice_type": "DISCARD_CARD_OR_SACRIFICE_SPIRIT",
+                  "prompt_text": "Nightmare Creep: Discard a card or sacrifice a Spirit."
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 4 (i.e., effectively on turn 5 and onwards), discard a card or sacrifice a Spirit."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_hand": ["TCTOY001"],
+        "first_turn_mana_override": 1,
+        "player_notes": [
+          "Place 4 counters near your play area to track Toys played and 4 counters to track Spirits created.",
+          "Advanced mechanics are not yet available in this memory fragment."
+        ]
+      },
+      "description": "Start with Toy Cow With Bell That Never Rings in hand. Begin with 1 mana on your first turn (then follow normal progression)."
+    },
+    "nightfall_turn": 4,
+    "card_rotation": {
+      "banned_card_ids": [],
+      "featured_card_ids": ["TCTOY001"]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: None (the night is young, and the rules still bend to daylight's lingering touch)"
+    ]
+  },
+  {
+    "objective_id": "OBJ02_WHISPER_WAKE",
+    "title": "The Whisper Before Wake",
+    "difficulty": "Easy",
+    "flavor_text": "The whisper grows louder as more voices join—a desperate chorus gathering around your bed.",
+    "primary_win_condition": {
+      "component_type": "CAST_SPELL_WITH_STORM_COUNT",
+      "params": {
+        "spell_card_id_or_name": "TCSPL_FLUFFSTORM_PLACEHOLDER",
+        "min_storm_count": 5,
+        "min_spirits_to_create_by_spell": 6
+      },
+      "description": "Cast Fluffstorm of Forgotten Names with Storm 5+ (create 6+ Spirit tokens at once)."
+    },
+    "alternative_win_condition": {
+      "component_type": "CREATE_TOTAL_X_SPIRITS_GAME",
+      "params": { "spirits_needed": 10 },
+      "description": "Bring 10+ Spirits into existence over the course of the game."
+    },
+    "first_memory_setup": {
+      "component_type": "CHOOSE_TOY_FROM_TOP_X_DECK_TO_HAND",
+      "params": { "card_count_to_look_at": 3 },
+      "description": "During setup, look at the top 3 cards of your deck. If you find a Toy among them, you may choose one to be your First Memory... and put it into your hand."
+    },
+    "first_memory_ongoing_effects": [],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 5,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "PLAYER_CHOICE",
+                "params": {
+                  "choice_id": "NC_WHISPER_WAKE_CHOICE",
+                  "choice_type": "DISCARD_CARD_OR_SACRIFICE_SPIRIT",
+                  "prompt_text": "Nightmare Creep: Discard a card or sacrifice a Spirit."
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 4 (i.e., effectively on turn 5 and onwards), discard a card or sacrifice a Spirit."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_play": ["TCTOY_GHOST_DOLL_PLACEHOLDER"],
+        "conditional_deck_search": {
+          "card_id_or_name_to_search": "TCSPL_FLUFFSTORM_PLACEHOLDER",
+          "condition_before_turn": 3
+        }
+      },
+      "description": "Start with Ghost Doll With Hollow Eyes in play. You may search your deck for Fluffstorm of Forgotten Names before turn 3."
+    },
+    "nightfall_turn": 6,
+    "card_rotation": {
+      "banned_card_ids": [
+        "TCRIT_RECURRING_CUDDLES_PLACEHOLDER",
+        "TCSPL_LAST_THREAD_PLACEHOLDER"
+      ],
+      "featured_card_ids": [
+        "TCSPL_FLUFFSTORM_PLACEHOLDER",
+        "TCTOY_GHOST_DOLL_PLACEHOLDER"
+      ]
+    },
+    "special_rules_text": [
+      "Hand size limit: 4 (the whispers crowd your thoughts, leaving little room for clarity)"
+    ]
+  }
+]
