@@ -3,53 +3,55 @@
 
 import pytest
 from typing import Tuple, List, Dict, Any
-from unittest.mock import MagicMock, call # Added call
+from unittest.mock import MagicMock, call 
 
 from tuck_in_terrors_sim.game_logic.game_state import GameState, CardInPlay
 from tuck_in_terrors_sim.game_logic.effect_engine import EffectEngine
-from tuck_in_terrors_sim.game_elements.card import Card, EffectLogic, Toy # Added Toy
+from tuck_in_terrors_sim.game_elements.card import Card, EffectLogic, Toy, Spell 
 from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard
 from tuck_in_terrors_sim.game_elements.enums import (
     EffectConditionType, EffectActionType, CardType, Zone, EffectTriggerType
 )
 
-# Fixture 'initialized_game_environment' is defined in tests/conftest.py
-# Fixture 'ee_and_gs' (below) is more tailored for direct EffectEngine tests.
-
 @pytest.fixture
-def base_toy_card_def() -> Toy: # Changed to Toy for more specific testing
-    """Provides a basic Toy card definition."""
+def base_toy_card_def() -> Toy: 
     return Toy(card_id="T_BASE001", name="Base Test Toy", cost=1, card_type=CardType.TOY, quantity_in_deck=1)
 
 @pytest.fixture
 def another_toy_card_def() -> Toy:
-    """Provides another basic Toy card definition for multi-card tests."""
     return Toy(card_id="T_OTHER001", name="Other Test Toy", cost=1, card_type=CardType.TOY, quantity_in_deck=1)
+
+@pytest.fixture
+def spell_card_def() -> Spell:
+    """Provides a basic Spell card definition."""
+    return Spell(card_id="S_BASE001", name="Base Test Spell", cost=1, card_type=CardType.SPELL, quantity_in_deck=1)
 
 
 @pytest.fixture
 def ee_and_gs(initialized_game_environment: Tuple[GameState, Any, EffectEngine, Any, Any], 
-              base_toy_card_def: Toy, another_toy_card_def: Toy) -> Tuple[EffectEngine, GameState]: # Added card defs
-    """Extracts EffectEngine and GameState, clears/preps for focused tests."""
+              base_toy_card_def: Toy, another_toy_card_def: Toy, spell_card_def: Spell) -> Tuple[EffectEngine, GameState]:
     game_state, _, effect_engine, _, _ = initialized_game_environment
     
-    # Clear and reset relevant parts of game_state for fresh tests
     game_state.hand = []
-    game_state.deck = [ # Populate with concrete Card instances
-        base_toy_card_def, # Use the new fixture
-        another_toy_card_def, # Use the new fixture
+    game_state.deck = [ 
+        base_toy_card_def, 
+        another_toy_card_def, 
         Toy(card_id="DECK_T3", name="Deck Toy 3", cost=1, card_type=CardType.TOY),
+        spell_card_def, 
         Toy(card_id="DECK_T4", name="Deck Toy 4", cost=1, card_type=CardType.TOY),
     ]
     game_state.cards_in_play.clear()
     game_state.discard_pile = []
+    game_state.exile_zone = [] 
     game_state.spirit_tokens = 0
     game_state.memory_tokens = 0
-    game_state.mana_pool = 10 # Default mana for tests
-    game_state.objective_progress = game_state.initialize_objective_progress() # Reset progress
+    game_state.mana_pool = 10 
+    game_state.objective_progress = game_state.initialize_objective_progress() 
     game_state.game_log = [] 
+    game_state.first_memory_card_definition = None 
+    game_state.first_memory_instance_id = None
+    game_state.first_memory_current_zone = None
     
-    # Mock the trigger_effects method for easier assertion of subsequent triggers
     effect_engine.trigger_effects = MagicMock()
     
     return effect_engine, game_state
@@ -137,6 +139,44 @@ class TestEffectEngineConditions:
             "params": {"target_card_instance_id": "NON_EXISTENT_ID", "counter_type": "power", "amount": 1}
         }]
         assert effect_engine._check_conditions(conditions_no_target, card_in_play, None, None, None) is False
+
+    def test_check_condition_is_first_memory_in_discard_true(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        game_state.first_memory_card_definition = base_toy_card_def
+        game_state.discard_pile.append(base_toy_card_def)
+        game_state.first_memory_current_zone = Zone.DISCARD 
+
+        conditions = [{"condition_type": EffectConditionType.IS_FIRST_MEMORY_IN_DISCARD.name, "params": {}}]
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is True
+
+    def test_check_condition_is_first_memory_in_discard_false(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy, another_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        
+        game_state.first_memory_card_definition = base_toy_card_def
+        game_state.hand.append(base_toy_card_def) 
+        game_state.first_memory_current_zone = Zone.HAND
+        conditions = [{"condition_type": EffectConditionType.IS_FIRST_MEMORY_IN_DISCARD.name, "params": {}}]
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is False
+        
+        game_state.discard_pile.append(another_toy_card_def)
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is False 
+
+        game_state.discard_pile.append(base_toy_card_def) 
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is False 
+
+    def test_check_condition_deck_size_le_true(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        game_state.deck = [base_toy_card_def for _ in range(5)] 
+        conditions = [{"condition_type": EffectConditionType.DECK_SIZE_LE.name, "params": {"count": 5}}]
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is True
+        conditions_lower = [{"condition_type": EffectConditionType.DECK_SIZE_LE.name, "params": {"count": 10}}]
+        assert effect_engine._check_conditions(conditions_lower, None, None, None, None) is True
+
+    def test_check_condition_deck_size_le_false(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        game_state.deck = [base_toy_card_def for _ in range(5)] 
+        conditions = [{"condition_type": EffectConditionType.DECK_SIZE_LE.name, "params": {"count": 4}}]
+        assert effect_engine._check_conditions(conditions, None, None, None, None) is False
 
 
 class TestEffectEngineActions:
@@ -336,6 +376,108 @@ class TestEffectEngineActions:
         assert EffectTriggerType.ON_LEAVE_PLAY in actual_trigger_calls
         assert EffectTriggerType.WHEN_OTHER_CARD_LEAVES_PLAY in actual_trigger_calls
 
+    def test_execute_action_mill_deck(self, ee_and_gs: Tuple[EffectEngine, GameState]):
+        effect_engine, game_state = ee_and_gs
+        initial_deck_size = len(game_state.deck)
+        initial_discard_size = len(game_state.discard_pile)
+        cards_to_mill = game_state.deck[:2] 
+
+        action_data = {"action_type": EffectActionType.MILL_DECK.name, "params": {"amount": 2}}
+        effect_engine._execute_action(action_data, None, None, None, None)
+
+        assert len(game_state.deck) == initial_deck_size - 2
+        assert len(game_state.discard_pile) == initial_discard_size + 2
+        for card in cards_to_mill:
+            assert card in game_state.discard_pile
+        
+    def test_execute_action_exile_card_from_deck(self, ee_and_gs: Tuple[EffectEngine, GameState]):
+        effect_engine, game_state = ee_and_gs
+        initial_deck_size = len(game_state.deck)
+        initial_exile_size = len(game_state.exile_zone)
+        card_to_be_exiled = game_state.deck[0]
+
+        action_data = {"action_type": EffectActionType.EXILE_CARD_FROM_ZONE.name, "params": {"zone": "DECK", "count": 1}}
+        effect_engine._execute_action(action_data, None, None, None, None)
+
+        assert len(game_state.deck) == initial_deck_size - 1
+        assert len(game_state.exile_zone) == initial_exile_size + 1
+        assert card_to_be_exiled in game_state.exile_zone
+        
+    def test_execute_action_exile_card_from_hand_random(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy, another_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        card1_in_hand = base_toy_card_def 
+        card2_in_hand = another_toy_card_def
+        game_state.hand = [card1_in_hand, card2_in_hand] 
+        initial_hand_size = len(game_state.hand)
+        initial_exile_size = len(game_state.exile_zone)
+
+        action_data = {"action_type": EffectActionType.EXILE_CARD_FROM_ZONE.name, "params": {"zone": "HAND", "count": 1}}
+        effect_engine._execute_action(action_data, None, None, None, None)
+
+        assert len(game_state.hand) == initial_hand_size - 1
+        assert len(game_state.exile_zone) == initial_exile_size + 1
+        
+        exiled_card = game_state.exile_zone[0]
+        assert exiled_card == card1_in_hand or exiled_card == card2_in_hand 
+        effect_engine.trigger_effects.assert_called_once_with(
+            EffectTriggerType.WHEN_CARD_EXILED_FROM_HAND,
+            source_card_definition_for_trigger=exiled_card,
+            event_context={'exiled_card_definition': exiled_card}
+        )
+    
+    def test_execute_action_return_card_from_discard_to_hand_first_memory(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        fm_card = base_toy_card_def
+        game_state.first_memory_card_definition = fm_card
+        game_state.discard_pile.append(fm_card)
+        game_state.first_memory_current_zone = Zone.DISCARD
+        
+        initial_discard_size = len(game_state.discard_pile)
+        initial_hand_size = len(game_state.hand)
+
+        action_data = {
+            "action_type": EffectActionType.RETURN_CARD_FROM_ZONE_TO_ZONE.name,
+            "params": {"card_to_return_id": "FIRST_MEMORY", "from_zone": "DISCARD", "to_zone": "HAND"}
+        }
+        effect_engine._execute_action(action_data, None, None, None, None)
+
+        assert len(game_state.discard_pile) == initial_discard_size - 1
+        assert len(game_state.hand) == initial_hand_size + 1
+        assert fm_card in game_state.hand
+        assert game_state.first_memory_current_zone == Zone.HAND
+
+    def test_execute_action_return_card_from_discard_to_deck_top(self, ee_and_gs: Tuple[EffectEngine, GameState], base_toy_card_def: Toy):
+        effect_engine, game_state = ee_and_gs
+        card_to_move = base_toy_card_def
+        game_state.discard_pile.append(card_to_move)
+        
+        initial_discard_size = len(game_state.discard_pile)
+        initial_deck_size = len(game_state.deck)
+        game_state.game_log = [] 
+
+        action_data = {
+            "action_type": EffectActionType.RETURN_CARD_FROM_ZONE_TO_ZONE.name,
+            "params": {"card_to_return_id": card_to_move.card_id, "from_zone": "DISCARD", "to_zone": "DECK_TOP"}
+        }
+        event_ctx_for_action = {'chosen_card_definition': card_to_move}
+
+        effect_engine._execute_action(action_data, None, None, None, event_context=event_ctx_for_action)
+        
+        try:
+            # Corrected expected log message string
+            assert any(f"Moved '{card_to_move.name}' from DISCARD to DECK_TOP" in entry for entry in game_state.game_log), \
+                f"Log message for moving card not found. Discard pile: {[c.name for c in game_state.discard_pile]}"
+            assert len(game_state.discard_pile) == initial_discard_size - 1, \
+                f"Discard pile size incorrect. Expected {initial_discard_size - 1}, got {len(game_state.discard_pile)}. Discard: {[c.name for c in game_state.discard_pile]}"
+            assert len(game_state.deck) == initial_deck_size + 1
+            assert game_state.deck[0] == card_to_move
+        except AssertionError:
+            print("\n--- Game Log for Failing Test ---")
+            for log_entry in game_state.game_log:
+                print(log_entry)
+            print("---------------------------------")
+            raise
+
 
 class TestEffectEngineResolveEffectLogic:
 
@@ -352,14 +494,9 @@ class TestEffectEngineResolveEffectLogic:
         
         initial_spirits = game_state.spirit_tokens
         
-        # When resolve_effect_logic calls _execute_action for CREATE_SPIRIT_TOKENS,
-        # source_card_instance will be None, and source_card_definition will be base_toy_card_def.
         effect_engine.resolve_effect_logic(test_effect, source_card_instance=None, source_card_definition=base_toy_card_def)
         assert game_state.spirit_tokens == initial_spirits + 1
         
-        # The _execute_action for CREATE_SPIRIT_TOKENS calls trigger_effects.
-        # In this scenario, source_card_instance within _execute_action is None,
-        # and source_card_definition is base_toy_card_def.
         effect_engine.trigger_effects.assert_called_with(
             EffectTriggerType.WHEN_SPIRIT_CREATED, 
             event_context={'amount': 1, 'action_source_instance': None, 'action_source_definition': base_toy_card_def}
@@ -392,6 +529,5 @@ class TestEffectEngineResolveEffectLogic:
             actions=[{"action_type": EffectActionType.ADD_MANA.name, "params": {"amount": 10}}]
         )
         initial_mana = game_state.mana_pool
-        effect_engine.resolve_effect_logic(test_effect) # source_card_instance and source_card_definition are None here
+        effect_engine.resolve_effect_logic(test_effect) 
         assert game_state.mana_pool == initial_mana + 10
-        # ADD_MANA doesn't call trigger_effects itself, so no assertion needed here on trigger_effects mock.

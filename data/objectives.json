@@ -21,7 +21,9 @@
     },
     "first_memory_setup": {
       "component_type": "CHOOSE_TOY_FROM_HAND_PLACE_IN_PLAY",
-      "params": {},
+      "params": {
+        "designated_first_memory_id": "TCTOY001"
+      },
       "description": "During setup, choose a Toy from your hand to be your First Memory. Mark it with the First Memory marker and place it face-up in play before the game begins."
     },
     "first_memory_ongoing_effects": [],
