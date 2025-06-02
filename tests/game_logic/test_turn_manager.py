@@ -78,11 +78,32 @@ class TestTurnManager:
 
     def test_main_phase_placeholder(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
         game_state, turn_manager, _, _, _ = initialized_game_environment
-        mock_ai_player = MagicMock() 
+        mock_ai_player = MagicMock()
+        mock_ai_player.player_name = "TestMockAI" # Explicitly set player_name for the mock
+
+        # Optional: Clear the log if you want to isolate logs from this specific call
+        # game_state.game_log.clear() 
+        # However, be cautious if other parts of the fixture's setup log essential info
 
         turn_manager._main_phase(mock_ai_player)
         assert game_state.current_phase == TurnPhase.MAIN_PHASE
-        assert any("AI Player taking actions..." in entry for entry in game_state.game_log)
+
+        # For debugging, you can print the game log:
+        # print("\n--- Game Log for test_main_phase_placeholder ---")
+        # for i, entry in enumerate(game_state.game_log):
+        # print(f"Log Entry {i}: {entry}")
+        # print("--- End Game Log ---")
+
+        expected_substring = f"AI Player ({mock_ai_player.player_name}) taking actions..."
+        # If you want to stick to the original less specific check (which should also pass if the new log format is used):
+        # expected_substring_generic = "AI Player taking actions..."
+
+        found_specific = any(expected_substring in entry for entry in game_state.game_log)
+        # found_generic = any(expected_substring_generic in entry for entry in game_state.game_log)
+
+        assert found_specific, \
+            f"Log entry containing specific string '{expected_substring}' not found. Ensure TurnManager is logging with player name."
+        # You could also assert found_generic if you want to ensure the base part is there.
 
 
     def test_end_turn_phase_basic_rules(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
