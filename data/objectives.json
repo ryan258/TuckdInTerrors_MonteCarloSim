@@ -6,17 +6,22 @@
     "flavor_text": "The first whispers are always the softest, but they echo the longest.",
     "primary_win_condition": {
       "component_type": "PLAY_X_DIFFERENT_TOYS_AND_CREATE_Y_SPIRITS",
-      "params": { "toys_needed": 4, "spirits_needed": 4 },
+      "params": {
+        "toys_needed": 4,
+        "spirits_needed": 4
+      },
       "description": "Play 4 different Toys and create 4 Spirits."
     },
     "alternative_win_condition": {
       "component_type": "GENERATE_X_MANA_FROM_CARD_EFFECTS",
-      "params": { "mana_needed": 5 },
+      "params": {
+        "mana_needed": 5
+      },
       "description": "Generate 5 total mana using card effects (in addition to normal turn mana gain)."
     },
     "first_memory_setup": {
       "component_type": "CHOOSE_TOY_FROM_HAND_PLACE_IN_PLAY",
-      "params": { "designated_first_memory_id": "TCTOY001" },
+      "params": {},
       "description": "During setup, choose a Toy from your hand to be your First Memory. Mark it with the First Memory marker and place it face-up in play before the game begins."
     },
     "first_memory_ongoing_effects": [],
@@ -39,7 +44,7 @@
             ]
           }
         },
-        "description": "Each turn after 4 (i.e., effectively on turn 5 and onwards), discard a card or sacrifice a Spirit."
+        "description": "Each turn after 4, discard a card or sacrifice a Spirit. The darkness hesitates slightly longer but inevitably closes in."
       }
     ],
     "setup_instructions": {
@@ -50,9 +55,10 @@
         "player_notes": [
           "Place 4 counters near your play area to track Toys played and 4 counters to track Spirits created.",
           "Advanced mechanics are not yet available in this memory fragment."
-        ]
+        ],
+        "start_with_first_memory_in_play": true
       },
-      "description": "Start with Toy Cow With Bell That Never Rings in hand. Begin with 1 mana on your first turn (then follow normal progression)."
+      "description": "Start with your chosen First Memory already in play. Start with Toy Cow With Bell That Never Rings in hand. Begin with 1 mana on your first turn (then follow normal progression)."
     },
     "nightfall_turn": 4,
     "card_rotation": {
@@ -79,13 +85,18 @@
     },
     "alternative_win_condition": {
       "component_type": "CREATE_TOTAL_X_SPIRITS_GAME",
-      "params": { "spirits_needed": 10 },
-      "description": "Bring 10+ Spirits into existence over the course of the game."
+      "params": {
+        "spirits_needed": 10
+      },
+      "description": "Bring 10+ Spirits into existence over the course of the game (even if they're later sacrificed)."
     },
     "first_memory_setup": {
       "component_type": "CHOOSE_TOY_FROM_TOP_X_DECK_TO_HAND",
-      "params": { "card_count_to_look_at": 3 },
-      "description": "During setup, look at the top 3 cards of your deck. If you find a Toy among them, you may choose one to be your First Memory... and put it into your hand."
+      "params": {
+        "card_count_to_look_at": 3,
+        "repeat_if_none_found": true
+      },
+      "description": "During setup, look at the top 3 cards of your deck. If you find a Toy among them, you may choose one to be your First Memory. If none are Toys, repeat this process until you find at least one Toy. Mark your chosen Toy with the First Memory marker and put it into your hand. Return all other viewed cards to the bottom of your deck in any order."
     },
     "first_memory_ongoing_effects": [],
     "nightmare_creep_effect": [
@@ -107,7 +118,7 @@
             ]
           }
         },
-        "description": "Each turn after 4 (i.e., effectively on turn 5 and onwards), discard a card or sacrifice a Spirit."
+        "description": "Each turn after 4, discard a card or sacrifice a Spirit. The darkness hesitates slightly longer but inevitably closes in."
       }
     ],
     "setup_instructions": {
@@ -117,23 +128,568 @@
         "conditional_deck_search": {
           "card_id_or_name_to_search": "TCSPL_FLUFFSTORM_PLACEHOLDER",
           "condition_before_turn": 3
-        }
+        },
+        "player_notes": [
+          "Keep track of each Spirit you create with a token, even if that Spirit is later sacrificed.",
+          "Place 10 Spirit tokens in a row to track your alternative win condition progress.",
+          "After completing this Objective, you unlock the Flashback ability in future scenarios (spend a Memory Token to play a card from your discard pile without paying its mana cost, then exile it)."
+        ]
       },
       "description": "Start with Ghost Doll With Hollow Eyes in play. You may search your deck for Fluffstorm of Forgotten Names before turn 3."
     },
     "nightfall_turn": 6,
     "card_rotation": {
+      "banned_card_ids": ["TCRIT001", "TCSPL_LAST_THREAD_PLACEHOLDER"],
+      "featured_card_ids": ["TCSPL_FLUFFSTORM_PLACEHOLDER", "TCTOY002"]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: Hand size limit: 4 (the whispers crowd your thoughts, leaving little room for clarity)"
+    ]
+  },
+  {
+    "objective_id": "OBJ03_CHOIR_FORGOTTEN",
+    "title": "Choir of Forgotten Things",
+    "difficulty": "MODERATE",
+    "flavor_text": "Each voice remembers a different part of the story—together they sing what you tried to forget.",
+    "primary_win_condition": {
+      "component_type": "CONTROL_X_SPIRITS_AT_ONCE",
+      "params": {
+        "spirits_needed": 7
+      },
+      "description": "Control 7+ Spirits at once."
+    },
+    "alternative_win_condition": {
+      "component_type": "CONTROL_X_DIFFERENT_SPIRIT_GENERATING_CARDS_IN_PLAY",
+      "params": {
+        "cards_needed": 3
+      },
+      "description": "Have 3+ different cards that generate Spirits in play at the same time."
+    },
+    "first_memory_setup": {
+      "component_type": "REVEAL_UNTIL_TOY_PLACE_IN_PLAY",
+      "params": {},
+      "description": "During setup, reveal cards from the top of your deck until you find a Toy. This Toy becomes your First Memory - mark it with the First Memory marker and put it directly into play. Return all other revealed cards to the bottom of your deck in any order."
+    },
+    "first_memory_ongoing_effects": [
+      {
+        "description": "If your First Memory is in play, it counts as two different Spirit-generating cards."
+      }
+    ],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "PLAYER_CHOICE",
+                "params": {
+                  "choice_id": "NC_CHOIR_FORGOTTEN_EARLY_CHOICE",
+                  "choice_type": "DISCARD_CARD_OR_SACRIFICE_SPIRIT",
+                  "prompt_text": "Nightmare Creep: Sacrifice a Spirit or discard a card."
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 3, sacrifice a Spirit or discard a card."
+      },
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 5,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "SACRIFICE_SPIRIT",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              },
+              {
+                "action_type": "DISCARD_CARDS_RANDOM_FROM_HAND",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              }
+            ]
+          }
+        },
+        "description": "On turn 5 and beyond, you must do both. The choir's hunger grows more insistent with each passing hour."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_play": ["TCTOY002"],
+        "start_tokens": { "SPIRIT": 1 },
+        "start_cards_in_hand": ["TCTOY_BELOVED_FRIEND_PLACEHOLDER"],
+        "player_notes": [
+          "Place 7 Spirit tokens in a row as your goal tracker.",
+          "The Flashback ability unlocked in the previous memory is available.",
+          "After completing this Objective, you unlock the Evolving First Memory ability in future scenarios (spend 2 Memory Tokens to enhance your First Memory with an additional ability)."
+        ]
+      },
+      "description": "Start with Ghost Doll With Hollow Eyes in play + 1 Spirit token. Beloved Friend Who Died For You starts in your hand."
+    },
+    "nightfall_turn": 7,
+    "card_rotation": {
+      "banned_card_ids": ["TCTOY001", "TCRIT_DREAMCATCHER_PLACEHOLDER"],
+      "featured_card_ids": ["TCTOY002", "TCTOY_BELOVED_FRIEND_PLACEHOLDER"]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: You may not activate effects that require you to sacrifice a Spirit token (except when forced by Nightmare Creep). (Sacrificing Toys that generate Spirits is still allowed). Their song must grow to completion.",
+      "SPECIAL REQUIREMENT: When you control 7 Spirits — you must name them aloud. These names do not need to make sense. They need only belong to you."
+    ]
+  },
+  {
+    "objective_id": "OBJ04_LOOP_TOO_MUCH",
+    "title": "The Loop That Loved Too Much",
+    "difficulty": "MODERATE",
+    "flavor_text": "Some love through repetition, others through variety—but all obsession leaves marks on the soul.",
+    "primary_win_condition": {
+      "component_type": "LOOP_TOY_X_TIMES_IN_TURN",
+      "params": {
+        "toy_loops_needed": 5,
+        "memory_token_per_loop_after_second": true
+      },
+      "description": "Loop one Toy 5+ times in a single turn. Each time after the second loop, you must Remember (create a Memory Token)."
+    },
+    "alternative_win_condition": {
+      "component_type": "RETURN_X_DIFFERENT_TOYS_FROM_DISCARD_TO_HAND_GAME",
+      "params": { "toys_needed": 6 },
+      "description": "Return 6 different Toys from your discard to your hand during the game."
+    },
+    "first_memory_setup": {
+      "component_type": "SEARCH_DECK_FOR_TOY_PLACE_IN_DISCARD",
+      "params": {},
+      "description": "Before the game begins, search your deck for any Toy card to be your First Memory. Mark it with the First Memory marker and place it in your discard pile. Shuffle your deck afterward."
+    },
+    "first_memory_ongoing_effects": [
+      {
+        "description": "Each time your First Memory returns from discard to hand, create a Memory Token. Each return etches the memory deeper."
+      }
+    ],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "PLAYER_CHOICE",
+                "params": {
+                  "choice_id": "NC_LOOP_TOO_MUCH_EARLY_CHOICE",
+                  "choice_type": "DISCARD_CARD_OR_SACRIFICE_SPIRIT",
+                  "prompt_text": "Nightmare Creep: Sacrifice a Spirit or discard a card."
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 3, sacrifice a Spirit or discard a card."
+      },
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 5,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "SACRIFICE_SPIRIT",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              },
+              {
+                "action_type": "DISCARD_CARDS_RANDOM_FROM_HAND",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              }
+            ]
+          }
+        },
+        "description": "On turn 5 and beyond, you must do both. The choir's hunger grows more insistent with each passing hour."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_play": ["TCRIT001"],
+        "start_cards_in_hand": ["TCTOY_DIRGE_BEAR_PLACEHOLDER"],
+        "player_notes": [
+          "Place 5 counters on a card representing your loop count goal.",
+          "Place 6 counters in a row to track different Toys returned from your discard.",
+          "Both Flashback and Evolving First Memory abilities are available in this memory fragment."
+        ]
+      },
+      "description": "Start with Recurring Cuddles That Leave Bruises in play. Dirge Bear Who Hums At Midnight starts in your hand."
+    },
+    "nightfall_turn": 5,
+    "card_rotation": {
       "banned_card_ids": [
-        "TCRIT_RECURRING_CUDDLES_PLACEHOLDER",
-        "TCSPL_LAST_THREAD_PLACEHOLDER"
-      ],
-      "featured_card_ids": [
         "TCSPL_FLUFFSTORM_PLACEHOLDER",
-        "TCTOY_GHOST_DOLL_PLACEHOLDER"
+        "TCTOY_WHISPERING_DOLL_PLACEHOLDER"
+      ],
+      "featured_card_ids": ["TCRIT001", "TCTOY_DIRGE_BEAR_PLACEHOLDER"]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: May only draw 1 card per turn. Your mind can only hold so much when caught in a loop."
+    ]
+  },
+  {
+    "objective_id": "OBJ05_THREADBARE_MOON",
+    "title": "Threadbare Moon",
+    "difficulty": "Hard",
+    "flavor_text": "What returns is never quite what was lost—each resurrection tears a little more from both worlds.",
+    "primary_win_condition": {
+      "component_type": "REANIMATE_FIRST_MEMORY_X_TIMES",
+      "params": { "reanimations_needed": 3 },
+      "description": "Reanimate your First Memory 3 times."
+    },
+    "alternative_win_condition": {
+      "component_type": "REANIMATE_X_DIFFERENT_TOYS_GAME",
+      "params": { "toys_needed": 4 },
+      "description": "Reanimate 4 different Toys over the course of the game."
+    },
+    "first_memory_setup": {
+      "component_type": "CHOOSE_OR_SEARCH_TOY_PLACE_IN_DISCARD",
+      "params": {},
+      "description": "During setup, choose a Toy from your hand or search your deck for a Toy card. Mark it with the First Memory marker and place it in your discard pile. If you searched your deck, shuffle it afterward. Your First Memory waits in darkness, patches worn thin, stuffing leaking between worlds."
+    },
+    "first_memory_ongoing_effects": [],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "INCREASE_HAND_CARD_COSTS",
+                "params": { "amount": 1 }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 3, the mana cost of all cards in your hand increases by 1. The veil between life and death grows more demanding with each crossing."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "initial_discard_pile_toys_random": 3,
+        "start_cards_in_hand": ["TCTOY_PLUSHCALLER_PLACEHOLDER"],
+        "start_tokens": { "MEMORY": 1 },
+        "player_notes": [
+          "Place 3 counters beside your First Memory to track its reanimations.",
+          "Place 4 counters in a row to track different Toys reanimated.",
+          "Once per game, if your First Memory would leave play, you may prevent this and create a Memory Token instead.",
+          "The Flashback and Evolving First Memory abilities are particularly potent in this deep memory fragment.",
+          "Once per game, you may place a token on your Memory Anchor without triggering the exile penalty if that token is later removed."
+        ]
+      },
+      "description": "Begin with 3 random Toys in your discard pile (in addition to your First Memory). Plushcaller of Lost Things starts in your hand. Begin with 1 Memory Token."
+    },
+    "nightfall_turn": 8,
+    "card_rotation": {
+      "banned_card_ids": [
+        "TCSPL_MEMORYS_LAST_ECHO_PLACEHOLDER",
+        "TCSPL_LAUGHTER_AMBER_PLACEHOLDER"
+      ],
+      "featured_card_ids": ["TCTOY_PLUSHCALLER_PLACEHOLDER"]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: Each reanimation reduces your max hand size by 1. The memories crowd your mind, leaving less room for new thoughts."
+    ]
+  },
+  {
+    "objective_id": "OBJ06_CREAKING_CHOIRBOX",
+    "title": "The Creaking Choirbox",
+    "difficulty": "MODERATE",
+    "flavor_text": "Every song finds its perfect moment to be heard—even the ones that should have stayed silent.",
+    "primary_win_condition": {
+      "component_type": "CAST_X_DIFFERENT_NON_TOY_SPELLS_IN_TURN",
+      "params": { "spells_needed": 5 },
+      "description": "Cast 5 different non-Toy spells in a single turn."
+    },
+    "alternative_win_condition": {
+      "component_type": "PLAY_X_DIFFERENT_NON_TOY_SPELLS_GAME",
+      "params": { "spells_needed": 8 },
+      "description": "Over the course of the game, play 8 different non-Toy spells."
+    },
+    "first_memory_setup": {
+      "component_type": "CHOOSE_OR_SEARCH_TOY_TO_HAND",
+      "params": {},
+      "description": "During setup, choose a Toy from your hand or search your deck for a Toy card. Mark it with the First Memory marker and place it in your hand. If you searched your deck, shuffle it afterward."
+    },
+    "first_memory_ongoing_effects": [
+      {
+        "description": "If your First Memory is in play when you cast a spell, it costs 1 less. Its music accompanies every incantation."
+      }
+    ],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "PLAYER_CHOICE",
+                "params": {
+                  "choice_id": "NC_CHOIRBOX_EARLY_CHOICE",
+                  "choice_type": "DISCARD_CARD_OR_SACRIFICE_SPIRIT",
+                  "prompt_text": "Nightmare Creep: Sacrifice a Spirit or discard a card."
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 3, sacrifice a Spirit or discard a card."
+      },
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 5,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "SACRIFICE_SPIRIT",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              },
+              {
+                "action_type": "DISCARD_CARDS_RANDOM_FROM_HAND",
+                "params": { "amount": 1, "player_choice_allowed": false }
+              }
+            ]
+          }
+        },
+        "description": "On turn 5 and beyond, you must do both. The choir's hunger grows more insistent with each passing hour."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_hand": ["TCSPL_NIGHTLIGHT_GLIMMER_PLACEHOLDER"],
+        "mana_gain_modifier_per_turn": 1,
+        "initial_mana_base_override": 2,
+        "conditional_deck_search": {
+          "card_id_or_name_to_search": "TCSPL_LAUGHTER_AMBER_PLACEHOLDER",
+          "condition_on_turn": 1
+        },
+        "player_notes": [
+          "Keep track of each unique spell played with a token or note.",
+          "Create a row of 8 tokens to track progress toward your alternative win condition.",
+          "Both Flashback and Evolving First Memory abilities have become intrinsic parts of your remembering process."
+        ]
+      },
+      "description": "Start with Nightlight Glimmer In Empty Rooms in hand. Gain +1 mana per turn (start with 3, then 5, etc.). You may search your deck for Laughter Preserved In Amber on turn 1, then shuffle."
+    },
+    "nightfall_turn": 6,
+    "card_rotation": {
+      "banned_card_ids": ["TCRIT001", "TCRIT_MEMORY_LOOP_PLACEHOLDER"],
+      "featured_card_ids": [
+        "TCSPL_NIGHTLIGHT_GLIMMER_PLACEHOLDER",
+        "TCSPL_LAUGHTER_AMBER_PLACEHOLDER"
       ]
     },
     "special_rules_text": [
-      "Hand size limit: 4 (the whispers crowd your thoughts, leaving little room for clarity)"
+      "LIMIT/TWIST: Once per game, you may play 1 card from your discard pile. Even lost songs can be remembered with enough effort."
+    ]
+  },
+  {
+    "objective_id": "OBJ07_STITCHED_INFINITY",
+    "title": "Stitched Infinity",
+    "difficulty": "HARD",
+    "flavor_text": "Some embrace the void, others feed it—but all must face what remains when everything else is gone.",
+    "primary_win_condition": {
+      "component_type": "EMPTY_DECK_WITH_CARDS_IN_PLAY",
+      "params": { "min_toys_in_play": 3, "min_rituals_in_play": 2 },
+      "description": "Empty your deck with 3+ Toys and 2+ Rituals in play."
+    },
+    "alternative_win_condition": {
+      "component_type": "SACRIFICE_X_TOYS_GAME",
+      "params": { "toys_needed": 8 },
+      "description": "Sacrifice 8+ Toys over the course of the game."
+    },
+    "first_memory_setup": {
+      "component_type": "SEARCH_DECK_FOR_TOY_TO_HAND",
+      "params": {},
+      "description": "At the beginning of the game, search your deck for any Toy card to be your First Memory. Mark it with the First Memory marker and place it in your hand. Shuffle your deck afterward."
+    },
+    "first_memory_ongoing_effects": [
+      {
+        "description": "If your First Memory is among the sacrificed Toys, it counts as 2 sacrifices. It understands the necessity of sacrifice better than most."
+      }
+    ],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              { "action_type": "MILL_DECK", "params": { "amount": 1 } }
+            ]
+          }
+        },
+        "description": "Each turn after 3, mill the top card of your deck."
+      },
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 6,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              { "action_type": "MILL_DECK", "params": { "amount": 2 } }
+            ]
+          }
+        },
+        "description": "After turn 5, mill the top 2 cards instead. Your memories dissolve at the edges first, then work inward to what matters most."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "exile_random_cards_from_deck_facedown_on_setup": 3,
+        "search_deck_to_hand_on_setup": ["TCRIT_MEMORY_LOOP_PLACEHOLDER"],
+        "conditional_deck_search": {
+          "card_id_or_name_to_search": "TCTOY_DIRGE_BEAR_PLACEHOLDER",
+          "condition_on_turn": 1
+        },
+        "player_notes": [
+          "Keep a sacrifice counter with 8 spaces to track your progress toward the alternative win.",
+          "Shuffle your deck after all searches are complete.",
+          "The borders between memories have thinned—Flashback and Evolving First Memory abilities now cost 1 less Memory Token to activate in this scenario."
+        ]
+      },
+      "description": "Exile 3 random cards from your deck face-down. Search your deck for Memory Loop of Scratched Records, reveal it, and place it in your hand. You may search your deck for Dirge Bear Who Hums At Midnight on turn 1."
+    },
+    "nightfall_turn": 0,
+    "card_rotation": {
+      "banned_card_ids": [
+        "TCRIT_DREAMCATCHER_PLACEHOLDER",
+        "TCSPL_LAUGHTER_AMBER_PLACEHOLDER"
+      ],
+      "featured_card_ids": [
+        "TCRIT_MEMORY_LOOP_PLACEHOLDER",
+        "TCTOY_DIRGE_BEAR_PLACEHOLDER"
+      ]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST: Draw a card every 3 turns instead of every turn.",
+      "If your deck contains 5 or fewer cards at the start of your turn, create 2 Memory Tokens. The emptiness itself becomes a kind of memory."
+    ]
+  },
+  {
+    "objective_id": "OBJ08_WILD_NIGHT",
+    "title": "Wild Night",
+    "difficulty": "HARD",
+    "flavor_text": "When shadows speak your name, listen closely—they've been practicing for years.",
+    "primary_win_condition": {
+      "component_type": "ROLL_TOTAL_X_ON_CARD_AND_HAVE_Y_MEMORY_TOKENS",
+      "params": {
+        "card_id_for_roll": "TCTOY_WHISPERING_DOLL_PLACEHOLDER",
+        "total_roll_needed": 10,
+        "memory_tokens_needed": 1,
+        "memory_tokens_spent_count": true
+      },
+      "description": "Roll a total of 10+ on The Whispering Doll during the game AND have at least one Memory Token. Each Memory Token spent during the game counts toward your required total."
+    },
+    "alternative_win_condition": {
+      "component_type": "PLAY_X_CARDS_FROM_EXILE_GAME",
+      "params": { "cards_needed": 5 },
+      "description": "Successfully play 5 or more cards from the exile zone during the game."
+    },
+    "first_memory_setup": {
+      "component_type": "FIRST_TOY_EXILED_BY_CARD_IS_FM",
+      "params": { "exiling_card_id": "TCRIT_DREAMCATCHER_PLACEHOLDER" },
+      "description": "The first Toy card exiled by Dreamcatcher With Nightmares Trapped Inside becomes your First Memory. Mark it with the First Memory marker even while it remains in exile."
+    },
+    "first_memory_ongoing_effects": [
+      {
+        "description": "Whenever your First Memory is referenced by card effects while exiled, double that effect."
+      }
+    ],
+    "nightmare_creep_effect": [
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 4,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "ROLL_DICE_FOR_PENALTY",
+                "params": {
+                  "rolls": 1,
+                  "penalties_by_roll_range": {
+                    "1-2": "DISCARD_RANDOM",
+                    "3-4": "EXILE_RANDOM_FROM_HAND",
+                    "5-6": "LOSE_MANA_1"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "description": "Each turn after 3, roll a die. On 1-2, discard a random card. On 3-4, exile a random card from your hand. On 5-6, lose 1 mana."
+      },
+      {
+        "component_type": "NIGHTMARE_CREEP_PHASED_EFFECT",
+        "params": {
+          "effective_on_turn": 7,
+          "effect_to_apply": {
+            "trigger_implicit": "ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN",
+            "actions": [
+              {
+                "action_type": "ROLL_DICE_FOR_PENALTY",
+                "params": {
+                  "rolls": 2,
+                  "penalties_by_roll_range": {
+                    "1-2": "DISCARD_RANDOM",
+                    "3-4": "EXILE_RANDOM_FROM_HAND",
+                    "5-6": "LOSE_MANA_1"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "description": "After turn 6, roll twice."
+      }
+    ],
+    "setup_instructions": {
+      "component_type": "CUSTOM_GAME_SETUP",
+      "params": {
+        "start_cards_in_hand": [
+          "TCTOY_WHISPERING_DOLL_PLACEHOLDER",
+          "TCRIT_DREAMCATCHER_PLACEHOLDER"
+        ],
+        "additional_cards_to_draw_on_setup": 5,
+        "start_tokens": { "MEMORY": 2 },
+        "player_notes": [
+          "Place a tracking card with 10 spaces to record the total of your Whispering Doll rolls.",
+          "In this final memory fragment, both Flashback and Evolving First Memory abilities may be used twice per game rather than once, representing the profound integration of your memory processes."
+        ]
+      },
+      "description": "Start with The Whispering Doll and Dreamcatcher With Nightmares Trapped Inside in your opening hand. Then draw 5 additional cards (for a starting hand of 7). Begin with 2 Memory Tokens."
+    },
+    "nightfall_turn": 9,
+    "card_rotation": {
+      "banned_card_ids": ["TCRIT001", "TCRIT_MEMORY_LOOP_PLACEHOLDER"],
+      "featured_card_ids": [
+        "TCTOY_WHISPERING_DOLL_PLACEHOLDER",
+        "TCRIT_DREAMCATCHER_PLACEHOLDER"
+      ]
+    },
+    "special_rules_text": [
+      "LIMIT/TWIST : At the end of each turn, exile a random card from your hand. When you exile a card this way, you may play one card from exile without paying its mana cost."
     ]
   }
 ]

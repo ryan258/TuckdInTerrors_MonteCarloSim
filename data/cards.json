@@ -80,7 +80,7 @@
     "cost": 2,
     "text_flavor": "The tighter the squeeze, the more faded the memory. Love leaves marks.",
     "text_rules": "✂️ Sacrifice a Toy: Return this to hand, then reanimate a Toy ✧ If First Memory is reanimated, ❤ ⚡ Once per turn",
-    "sub_types": ["SACRIFICE", "REANIMATE"],
+    "sub_types": ["SACRIFICE", "REANIMATE", "LOOP"],
     "effect_logic_list": [
       {
         "trigger": "ACTIVATED_ABILITY",
@@ -133,12 +133,12 @@
         "actions": [
           { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
         ],
-        "is_echo_effect": false,
         "description": "When leaves play, create a Spirit."
       },
       {
         "trigger": "BEFORE_THIS_CARD_MOVES_ZONES",
         "conditions": [
+          { "condition_type": "IS_FIRST_MEMORY", "params": {} },
           {
             "condition_type": "IS_MOVING_FROM_ZONE",
             "params": { "zone": "DISCARD" }
@@ -157,7 +157,7 @@
           }
         ],
         "is_echo_effect": true,
-        "description": "If this card is First Memory and would move from discard to exile, instead create a Spirit and return this card to your hand."
+        "description": "If this card is First Memory and would move from discard to exile, create a Spirit and return this card to your hand instead."
       }
     ],
     "quantity_in_deck": 2,
@@ -170,7 +170,7 @@
     "card_type": "SPELL",
     "cost": 3,
     "text_flavor": "The air fills with whispers—each one a name you once knew. For a moment, they remember you too, before dissolving back into the spaces between thoughts.",
-    "text_rules": "Create a Spirit. Storm. (Create an additional Spirit for each spell cast before this turn) ✧ First Spirit gains \"Sacrifice: ❤\"",
+    "text_rules": "Create a Spirit. Storm. (Create an additional Spirit for each spell cast before this turn) ✧ If your First Memory (Toy) is in play, the first Spirit created by this spell resolution gains 'Sacrifice: Create 1 Memory Token (❤)'.",
     "sub_types": [],
     "effect_logic_list": [
       {
@@ -206,8 +206,1148 @@
             }
           }
         ],
-        "is_echo_effect": false,
+        "is_echo_effect": true,
         "description": "✧ If your First Memory (Toy) is in play, the first Spirit created by this spell resolution gains 'Sacrifice: Create 1 Memory Token (❤)'."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCTOY003",
+    "name": "Plushcaller of Lost Things",
+    "card_type": "TOY",
+    "cost": 3,
+    "text_flavor": "Yarn arms stretch into impossible spaces. She always returns with something you've forgotten.",
+    "text_rules": "When enters play: Return a Toy from discard to play with \"Exile if it would leave play\" ✧ Your First Memory returns without exile restriction ❤ Only if your First Memory remains in play until end of turn",
+    "sub_types": ["REANIMATE"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "REANIMATE_TOY_FROM_DISCARD",
+            "params": {
+              "apply_exile_if_leaves_play_unless_fm": true,
+              "fm_bonus_action_if_in_play_eot": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              }
+            }
+          }
+        ],
+        "description": "When enters play: Return a Toy from discard to play. That Toy gains \"Exile if it would leave play.\" If the reanimated Toy is your First Memory, it does not gain this restriction. If your First Memory (reanimated this way or already in play) remains in play until end of turn, create a Memory Token."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY004",
+    "name": "Feeding Chair With Too Many Teeth",
+    "card_type": "TOY",
+    "cost": 1,
+    "text_flavor": "Seventeen teeth, multiplying when you look away. The more it eats, the louder it chews.",
+    "text_rules": "{T}, Sacrifice another Toy: Put a +1 counter on this card. When this has 3+ counters, sacrifice it and create 3 Spirits ✧ If your First Memory was sacrificed by this card's ability, create ❤",
+    "sub_types": ["SACRIFICE"],
+    "effect_logic_list": [
+      {
+        "trigger": "TAP_ABILITY",
+        "activation_costs": [
+          { "cost_type": "TAP_THIS_CARD", "params": {} },
+          {
+            "cost_type": "SACRIFICE_FROM_PLAY",
+            "params": {
+              "filter_card_type": "TOY",
+              "count": 1,
+              "exclude_self": true,
+              "is_fm_sacrificed_bonus_action": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              }
+            }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLACE_COUNTER_ON_CARD",
+            "params": {
+              "target_card_instance_id": "SELF",
+              "counter_type": "FEEDING",
+              "amount": 1
+            }
+          }
+        ],
+        "description": "{T}, Sacrifice another Toy: Put a +1 feeding counter on this card. If your First Memory was sacrificed this way, create a Memory Token."
+      },
+      {
+        "trigger": "WHEN_COUNTER_REACHES_THRESHOLD",
+        "conditions": [
+          {
+            "condition_type": "HAS_COUNTER_TYPE_VALUE_GE",
+            "params": {
+              "counter_type": "FEEDING",
+              "amount": 3,
+              "target_card_instance_id": "SELF"
+            }
+          }
+        ],
+        "actions": [
+          {
+            "action_type": "SACRIFICE_CARD_IN_PLAY",
+            "params": { "target_card_instance_id": "SELF" }
+          },
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 3 } }
+        ],
+        "description": "When this has 3+ feeding counters, sacrifice it and create 3 Spirits."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY005",
+    "name": "Dirge Bear Who Hums At Midnight",
+    "card_type": "TOY",
+    "cost": 4,
+    "text_flavor": "His melody unravels reality. Different song, same sorrow.",
+    "text_rules": "When another Toy leaves play, add 1 mana. When a Toy comes into play from your discard pile, draw a card ✧ Your First Memory triggers both effects twice",
+    "sub_types": ["REANIMATE", "LOOP"],
+    "effect_logic_list": [
+      {
+        "trigger": "WHEN_OTHER_CARD_LEAVES_PLAY",
+        "conditions": [
+          {
+            "condition_type": "EVENT_CARD_IS_TYPE",
+            "params": { "card_type": "TOY" }
+          }
+        ],
+        "actions": [
+          {
+            "action_type": "ADD_MANA",
+            "params": { "amount": 1, "fm_doubles_effect_on_event_card": true }
+          }
+        ],
+        "description": "When another Toy leaves play, add 1 mana. If that Toy is your First Memory, add 2 mana instead."
+      },
+      {
+        "trigger": "WHEN_CARD_ENTERS_PLAY_FROM_DISCARD",
+        "conditions": [
+          {
+            "condition_type": "EVENT_CARD_IS_TYPE",
+            "params": { "card_type": "TOY" }
+          }
+        ],
+        "actions": [
+          {
+            "action_type": "DRAW_CARDS",
+            "params": { "amount": 1, "fm_doubles_effect_on_event_card": true }
+          }
+        ],
+        "description": "When a Toy comes into play from your discard pile, draw a card. If that Toy is your First Memory, draw 2 cards instead."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY006",
+    "name": "Echo Bear Who Remembers Your Name",
+    "card_type": "TOY",
+    "cost": 3,
+    "text_flavor": "Its glass eyes hold recognition from another time. Some bonds persist even when names and faces fade away.",
+    "text_rules": "When enters play, if your First Memory is in your discard pile, you may return it to your hand ⏳ When would leave play, you may create ❤ and keep in play instead",
+    "sub_types": ["MEMORY_TOKEN_INTERACT", "REANIMATE"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [
+          { "condition_type": "IS_FIRST_MEMORY_IN_DISCARD", "params": {} }
+        ],
+        "actions": [
+          {
+            "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+            "params": {
+              "card_to_return_id": "FIRST_MEMORY",
+              "from_zone": "DISCARD",
+              "to_zone": "HAND"
+            }
+          }
+        ],
+        "description": "When enters play, if your First Memory is in your discard pile, you may return it to your hand."
+      },
+      {
+        "trigger": "BEFORE_THIS_CARD_LEAVES_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE",
+            "params": {
+              "choice_id": "ECHO_BEAR_SAVE_CHOICE",
+              "choice_type": "YES_NO",
+              "prompt_text": "Echo Bear would leave play. Create a Memory Token and keep it in play instead?",
+              "on_yes_actions": [
+                {
+                  "action_type": "CREATE_MEMORY_TOKENS",
+                  "params": { "amount": 1 }
+                },
+                { "action_type": "CANCEL_IMPENDING_LEAVE_PLAY", "params": {} }
+              ]
+            }
+          }
+        ],
+        "description": "When this would leave play, you may create a Memory Token and keep this card in play instead."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY007",
+    "name": "Quilt-Scrap Tower That Sways When You Sleep",
+    "card_type": "TOY",
+    "cost": 2,
+    "text_flavor": "Baby blanket scraps, leaning but never falling. Each piece whispers a forgotten name.",
+    "text_rules": "{T}: Add 1 mana. This mana can only be spent to play Toy cards or activate abilities of your First Memory",
+    "sub_types": [],
+    "effect_logic_list": [
+      {
+        "trigger": "TAP_ABILITY",
+        "activation_costs": [{ "cost_type": "TAP_THIS_CARD", "params": {} }],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "ADD_MANA",
+            "params": {
+              "amount": 1,
+              "mana_restriction_tags": ["TOY_CARDS", "FIRST_MEMORY_ABILITIES"]
+            }
+          }
+        ],
+        "description": "{T}: Add 1 mana. This mana can only be spent to play Toy cards or activate abilities of your First Memory."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY008",
+    "name": "Brush Scout From Under The Bed",
+    "card_type": "TOY",
+    "cost": 3,
+    "text_flavor": "Bristles collecting dust, wishes, and names you once loved but forgot.",
+    "text_rules": "When comes into play: Search your deck for a Toy and put it on top ✧ If First Memory is in discard pile, you may put it directly into your hand instead. If searched Toy is First Memory, you may play it immediately without paying its cost",
+    "sub_types": ["BROWSE_SEARCH"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "SEARCH_DECK_FOR_TOY_INTERACTION",
+            "params": {
+              "default_action": "PUT_ON_TOP_OF_DECK",
+              "fm_in_discard_alt_action": "PUT_IN_HAND",
+              "fm_found_bonus_action": "PLAY_NO_COST"
+            }
+          }
+        ],
+        "description": "When comes into play: Search your deck for a Toy and put it on top of your deck. ✧ If your First Memory is in your discard pile, you may instead put it directly into your hand from your discard pile. If the Toy you searched for and obtained (from deck or discard) is your First Memory, you may play it immediately without paying its cost."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY009",
+    "name": "Stitched Keeper of Discarded Dreams",
+    "card_type": "TOY",
+    "cost": 2,
+    "text_flavor": "Its pockets hold what you thought lost forever, waiting until you remember why they mattered.",
+    "text_rules": "Whenever you play a card from your discard pile, create a Spirit. {T}, Sacrifice: Return your First Memory from discard to hand, then create ❤.",
+    "sub_types": ["HAUNT", "REANIMATE", "SACRIFICE", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "WHEN_CARD_PLAYED_FROM_DISCARD_PILE",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "Whenever you play a card from your discard pile, create a Spirit."
+      },
+      {
+        "trigger": "TAP_ABILITY",
+        "activation_costs": [
+          { "cost_type": "TAP_THIS_CARD", "params": {} },
+          { "cost_type": "SACRIFICE_THIS_CARD", "params": {} }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+            "params": {
+              "card_to_return_id": "FIRST_MEMORY",
+              "from_zone": "DISCARD",
+              "to_zone": "HAND"
+            }
+          },
+          { "action_type": "CREATE_MEMORY_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "{T}, Sacrifice: Return your First Memory from discard to hand, then create a Memory Token."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY010",
+    "name": "Beloved Friend Who Died For You",
+    "card_type": "TOY",
+    "cost": 1,
+    "text_flavor": "Sacrifices echo through years—unspoken but felt. Your binding thread outlasts fabric, time, and darkness.",
+    "text_rules": "When comes into play, choose another Toy. If chosen Toy would leave play, you may sacrifice this instead. When sacrificed this way, create 2 Spirits and ❤ ✧ If protecting First Memory, create an additional ❤",
+    "sub_types": ["HAUNT", "MEMORY_TOKEN_INTERACT", "SACRIFICE"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "CHOOSE_OTHER_TOY_TO_PROTECT", "params": {} }
+        ],
+        "description": "When comes into play, choose another Toy to protect."
+      },
+      {
+        "trigger": "WHEN_PROTECTED_TOY_WOULD_LEAVE_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE",
+            "params": {
+              "choice_id": "SACRIFICE_BELOVED_FRIEND_CHOICE",
+              "choice_type": "YES_NO",
+              "prompt_text": "Your protected Toy would leave play. Sacrifice Beloved Friend instead?",
+              "on_yes_actions": [
+                {
+                  "action_type": "SACRIFICE_THIS_CARD_TO_SAVE_OTHER",
+                  "params": {}
+                },
+                {
+                  "action_type": "CREATE_SPIRIT_TOKENS",
+                  "params": { "amount": 2 }
+                },
+                {
+                  "action_type": "CREATE_MEMORY_TOKENS",
+                  "params": { "amount": 1, "fm_bonus_if_protected_was_fm": 1 }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "If the chosen Toy would leave play, you may sacrifice this card instead. When sacrificed this way, create 2 Spirits and 1 Memory Token. ✧ If this was protecting your First Memory, create an additional Memory Token."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY011",
+    "name": "The Whispering Doll",
+    "card_type": "TOY",
+    "cost": 3,
+    "text_flavor": "Cracked porcelain lips, different story each night. Not all endings happy, but all hide a truth.",
+    "text_rules": "When enters play and at start of turn, roll a die: (1) Sacrifice a Toy (2) Create 2 Spirits (3) Draw a card (4) Return First Memory from discard to play (5) Create ❤ (6) Take an extra turn ✧ Roll twice but must accept second result",
+    "sub_types": ["DICE_ROLL"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY_AND_BEGIN_PLAYER_TURN",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "ROLL_DICE_SELECT_EFFECT",
+            "params": {
+              "num_rolls_fm_bonus": {
+                "is_fm": true,
+                "rolls": 2,
+                "must_accept_second": true
+              },
+              "default_rolls": 1,
+              "results": {
+                "1": {
+                  "action_type": "PLAYER_CHOICE",
+                  "params": { "choice_type": "CHOOSE_TOY_TO_SACRIFICE" }
+                },
+                "2": {
+                  "action_type": "CREATE_SPIRIT_TOKENS",
+                  "params": { "amount": 2 }
+                },
+                "3": { "action_type": "DRAW_CARDS", "params": { "amount": 1 } },
+                "4": {
+                  "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+                  "params": {
+                    "card_to_return_id": "FIRST_MEMORY",
+                    "from_zone": "DISCARD",
+                    "to_zone": "IN_PLAY"
+                  }
+                },
+                "5": {
+                  "action_type": "CREATE_MEMORY_TOKENS",
+                  "params": { "amount": 1 }
+                },
+                "6": { "action_type": "TAKE_EXTRA_TURN", "params": {} }
+              }
+            }
+          }
+        ],
+        "description": "When enters play and at start of your turn, roll a die. ✧ If this is your First Memory, roll twice but you must accept the second result. (1) Sacrifice a Toy. (2) Create 2 Spirits. (3) Draw a card. (4) Return First Memory from discard to play. (5) Create a Memory Token. (6) Take an extra turn."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY012",
+    "name": "The Midnight Animator",
+    "card_type": "TOY",
+    "cost": 2,
+    "text_flavor": "At midnight, its wooden limbs move unnaturally fluid. Memory blurs with waking dreams in darkness.",
+    "text_rules": "When comes into play and at beginning of turn: Roll a die (1-3) Each Toy becomes animated until end of turn - tap to create a Spirit (4-5) Return First Memory from exile or discard to hand (6) Sacrifice a random Toy and create ❤❤ ✧ You may add 1 to your die roll",
+    "sub_types": ["DICE_ROLL"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY_AND_BEGIN_PLAYER_TURN",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "ROLL_DICE_SELECT_EFFECT",
+            "params": {
+              "roll_modifier_fm_bonus": { "is_fm": true, "modifier": 1 },
+              "results": {
+                "1-3": {
+                  "action_type": "GRANT_TAP_ABILITY_TO_TOYS",
+                  "params": {
+                    "ability_action": {
+                      "action_type": "CREATE_SPIRIT_TOKENS",
+                      "params": { "amount": 1 }
+                    }
+                  }
+                },
+                "4-5": {
+                  "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+                  "params": {
+                    "card_to_return_id": "FIRST_MEMORY",
+                    "from_zone_options": ["EXILE", "DISCARD"],
+                    "to_zone": "HAND"
+                  }
+                },
+                "6+": {
+                  "action_type": "SACRIFICE_RANDOM_TOY_AND_CREATE_MEMORY_TOKENS",
+                  "params": { "memory_tokens_to_create": 2 }
+                }
+              }
+            }
+          }
+        ],
+        "description": "When this comes into play and at the beginning of your turn: Roll a die. ✧ If this is your First Memory, you may add 1 to your die roll. (1-3) Each Toy you control gains '{T}: Create a Spirit' until end of turn. (4-5) Return your First Memory from exile or discard to your hand. (6+) Sacrifice a random Toy and create 2 Memory Tokens."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCTOY013",
+    "name": "Shadow Puppet From The Night Lamp",
+    "card_type": "TOY",
+    "cost": 2,
+    "text_flavor": "Its silhouette dances between worlds, catching darkness before it reaches your bed. Some fears, once shaped, become protectors.",
+    "text_rules": "When enters play, skip next Nightmare Creep effect. {T} When creating a Spirit: Create ❤ instead ✧ Sacrifice to cancel any Nightmare Creep effect",
+    "sub_types": ["NIGHTMARE_INTERACT", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "SKIP_NIGHTMARE_CREEP_EFFECT",
+            "params": { "count": 1 }
+          }
+        ],
+        "description": "When enters play, skip the next Nightmare Creep effect this game."
+      },
+      {
+        "trigger": "PASSIVE_ABILITY_WHILE_TAPPED",
+        "conditions": [
+          { "condition_type": "THIS_CARD_IS_TAPPED", "params": {} }
+        ],
+        "actions": [
+          { "action_type": "REPLACEMENT_EFFECT_SPIRIT_TO_MEMORY", "params": {} }
+        ],
+        "description": "{T} (While Tapped) If you would create one or more Spirits, create that many Memory Tokens instead."
+      },
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [
+          { "cost_type": "SACRIFICE_THIS_CARD", "params": {} }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "CANCEL_NIGHTMARE_CREEP_EFFECT",
+            "params": { "target": "ANY" }
+          }
+        ],
+        "is_echo_effect": true,
+        "description": "✧ Sacrifice: Cancel any Nightmare Creep effect."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Toy - Core Set"
+  },
+  {
+    "card_id": "TCRIT002",
+    "name": "Survival of the Cuddliest (Softest Die)",
+    "card_type": "RITUAL",
+    "cost": 2,
+    "text_flavor": "The plush with the most stuffing endures longest. The others watch from the darkness, their unraveling a slow testament to forgotten love.",
+    "text_rules": "Discard a Toy: Search deck for a Toy card, reveal it, and put into hand. Then shuffle. If deck has 10 or fewer cards remaining, create ❤",
+    "sub_types": ["BROWSE_SEARCH", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [
+          {
+            "cost_type": "DISCARD_FROM_HAND",
+            "params": { "filter_card_type": "TOY", "count": 1 }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "SEARCH_DECK_FOR_CARD_TYPE_TO_HAND",
+            "params": { "card_type": "TOY" }
+          },
+          {
+            "action_type": "CONDITIONAL_EFFECT",
+            "params": {
+              "condition": {
+                "condition_type": "DECK_SIZE_LE",
+                "params": { "count": 10 }
+              },
+              "action_if_true": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              }
+            }
+          }
+        ],
+        "description": "Discard a Toy: Search your deck for a Toy card, reveal it, and put it into your hand. Then shuffle. If your deck has 10 or fewer cards remaining, create a Memory Token."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCRIT003",
+    "name": "Midnight Offering of Thread and Buttons",
+    "card_type": "RITUAL",
+    "cost": 2,
+    "text_flavor": "Silent scissors harvest what was precious. Offerings in the basket smell of childhood mornings.",
+    "text_rules": "Sacrifice a Toy: Add 3 mana. If you sacrifice a Toy controlled for 3+ turns, create ❤ ✧ If you sacrifice First Memory, double mana gained but suffer additional 👁️",
+    "sub_types": ["SACRIFICE", "MEMORY_TOKEN_INTERACT", "NIGHTMARE_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [
+          {
+            "cost_type": "SACRIFICE_FROM_PLAY",
+            "params": { "filter_card_type": "TOY", "count": 1 }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "ADD_MANA_WITH_BONUSES_AND_PENALTIES",
+            "params": {
+              "base_amount": 3,
+              "controlled_3_plus_turns_bonus_action": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              },
+              "fm_sacrificed_bonus_multiplier": 2,
+              "fm_sacrificed_penalty_action": {
+                "action_type": "TRIGGER_NIGHTMARE_CREEP_ADDITIONAL",
+                "params": {}
+              }
+            }
+          }
+        ],
+        "description": "Sacrifice a Toy: Add 3 mana. If you sacrifice a Toy you controlled for 3 or more turns, create a Memory Token. ✧ If you sacrifice your First Memory, double the mana gained, but you also suffer an additional Nightmare Creep effect."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCRIT004",
+    "name": "Memory Loop of Scratched Records",
+    "card_type": "RITUAL",
+    "cost": 3,
+    "text_flavor": "The needle catches. Yesterday plays tomorrow's melody.",
+    "text_rules": "When enters play: Return First Memory from discard to hand. At start of turn: May sacrifice a Toy. If you do, return a different Toy from discard to hand. ⏱️ Only activates every other turn. 👁️ Each time returns a card, Nightmare Creep triggers as if one turn later.",
+    "sub_types": ["LOOP", "REANIMATE", "NIGHTMARE_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+            "params": {
+              "card_to_return_id": "FIRST_MEMORY",
+              "from_zone": "DISCARD",
+              "to_zone": "HAND"
+            }
+          }
+        ],
+        "description": "When enters play: Return First Memory from discard to hand."
+      },
+      {
+        "trigger": "BEGIN_PLAYER_TURN_EVERY_OTHER",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE",
+            "params": {
+              "choice_id": "MEMORY_LOOP_SAC_CHOICE",
+              "choice_type": "CHOOSE_TOY_TO_SACRIFICE_OPTIONAL",
+              "prompt_text": "Memory Loop: Sacrifice a Toy to return a different Toy from discard to hand?",
+              "on_yes_actions": [
+                {
+                  "action_type": "RETURN_DIFFERENT_TOY_FROM_DISCARD_TO_HAND",
+                  "params": { "sacrificed_toy_id_ref": "PREVIOUS_CHOICE_PARAM" }
+                },
+                {
+                  "action_type": "ADVANCE_NIGHTMARE_CREEP_TRACK",
+                  "params": { "turns": 1 }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "At start of turn (activates only every other turn): You may sacrifice a Toy. If you do, return a different Toy from your discard pile to your hand. Each time this ability returns a card, Nightmare Creep triggers as if one turn later."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCRIT005",
+    "name": "Cradle Song That Never Resolves",
+    "card_type": "RITUAL",
+    "cost": 3,
+    "text_flavor": "The unfinished lullaby hangs in air. Something ancient counts the bars, waiting for silence.",
+    "text_rules": "{1}, Tap an untapped Toy: Create a Spirit ✧ When First Memory is tapped this way, create an additional Spirit and 🔍1",
+    "sub_types": ["HAUNT", "BROWSE_SEARCH"],
+    "effect_logic_list": [
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [
+          { "cost_type": "PAY_MANA", "params": { "amount": 1 } },
+          {
+            "cost_type": "TAP_CARD_IN_PLAY",
+            "params": { "filter_card_type": "TOY", "must_be_untapped": true }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 1 } },
+          {
+            "action_type": "CONDITIONAL_EFFECT",
+            "params": {
+              "condition": {
+                "condition_type": "EVENT_CARD_IS_FM",
+                "params": { "card_ref": "TAPPED_TOY_COST" }
+              },
+              "action_if_true_sequential": [
+                {
+                  "action_type": "CREATE_SPIRIT_TOKENS",
+                  "params": { "amount": 1 }
+                },
+                { "action_type": "BROWSE_DECK", "params": { "count": 1 } }
+              ]
+            }
+          }
+        ],
+        "description": "Pay 1 mana, Tap an untapped Toy you control: Create a Spirit. ✧ If the tapped Toy is your First Memory, create an additional Spirit and browse the top card of your deck (🔍1)."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCRIT006",
+    "name": "Dreamcatcher With Nightmares Trapped Inside",
+    "card_type": "RITUAL",
+    "cost": 3,
+    "text_flavor": "The web vibrates with caught terrors. They whisper your name when you look away.",
+    "text_rules": "At end of turn: Exile top card of deck face down. ⚡ Play a random exiled card for free, then sacrifice a Toy. 👁️ View all exiled cards before choosing.",
+    "sub_types": ["NIGHTMARE_INTERACT", "SACRIFICE"],
+    "effect_logic_list": [
+      {
+        "trigger": "END_PLAYER_TURN",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "EXILE_CARD_FROM_ZONE",
+            "params": { "zone": "DECK", "count": 1, "face_down": true }
+          }
+        ],
+        "description": "At end of turn: Exile the top card of your deck face down."
+      },
+      {
+        "trigger": "ACTIVATED_ABILITY",
+        "activation_costs": [],
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "VIEW_EXILED_CARDS_PLAYER_CHOICE",
+            "params": { "prompt_text": "Dreamcatcher: View exiled cards." }
+          },
+          { "action_type": "PLAY_RANDOM_EXILED_CARD_NO_COST", "params": {} },
+          { "action_type": "PLAYER_CHOICE_SACRIFICE_TOY", "params": {} }
+        ],
+        "is_once_per_turn": true,
+        "description": "⚡ (Once per turn, as an action) You may view all cards exiled by this Ritual. Play a random card exiled this way without paying its mana cost, then sacrifice a Toy."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCRIT007",
+    "name": "Theater of Forgotten Birthday Parties",
+    "card_type": "RITUAL",
+    "cost": 2,
+    "text_flavor": "Paper hats still hang on invisible heads. The candles never stop burning, their wax frozen in mid-drip as wishes echo in an empty room.",
+    "text_rules": "At start of turn, if First Memory is in play, create ❤. Whenever you sacrifice a Toy, you may pay {1} to return it to top of deck instead of discard.",
+    "sub_types": ["MEMORY_TOKEN_INTERACT", "LOOP", "SACRIFICE"],
+    "effect_logic_list": [
+      {
+        "trigger": "BEGIN_PLAYER_TURN",
+        "conditions": [
+          { "condition_type": "IS_FIRST_MEMORY_IN_PLAY", "params": {} }
+        ],
+        "actions": [
+          { "action_type": "CREATE_MEMORY_TOKENS", "params": { "amount": 1 } }
+        ],
+        "description": "At start of turn, if First Memory is in play, create a Memory Token."
+      },
+      {
+        "trigger": "WHEN_YOU_SACRIFICE_TOY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE",
+            "params": {
+              "choice_id": "THEATER_RETURN_TO_DECK_CHOICE",
+              "choice_type": "YES_NO_PAY_COST",
+              "cost_params": { "cost_type": "MANA", "amount": 1 },
+              "prompt_text": "Pay 1 mana to return the sacrificed Toy to the top of your deck instead of discard?",
+              "on_yes_actions": [
+                {
+                  "action_type": "RETURN_SACRIFICED_CARD_TO_TOP_DECK",
+                  "params": { "card_ref": "SACRIFICED_TOY_EVENT" }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "Whenever you sacrifice a Toy, you may pay 1 mana to return it to the top of your deck instead of your discard pile."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Ritual - Core Set"
+  },
+  {
+    "card_id": "TCSPL002",
+    "name": "Stuffing Burst From Ripped Seams",
+    "card_type": "SPELL",
+    "cost": 3,
+    "text_flavor": "The sound of tearing fabric. A cloud of cotton that smells faintly of childhood. All that love, exploded into nothing but memory and dust.",
+    "text_rules": "✂️ Sacrifice a Toy: Draw 2 cards and create 2 Spirits ✧ If sacrificing First Memory: Draw +1 card and delay next 👁️ by 1 turn",
+    "sub_types": ["SACRIFICE", "HAUNT", "NIGHTMARE_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "activation_costs": [
+          {
+            "cost_type": "SACRIFICE_FROM_PLAY_CHOICE",
+            "params": { "filter_card_type": "TOY", "count": 1 }
+          }
+        ],
+        "conditions": [],
+        "actions": [
+          { "action_type": "DRAW_CARDS", "params": { "amount": 2 } },
+          { "action_type": "CREATE_SPIRIT_TOKENS", "params": { "amount": 2 } },
+          {
+            "action_type": "CONDITIONAL_EFFECT",
+            "params": {
+              "condition": {
+                "condition_type": "EVENT_CARD_IS_FM",
+                "params": { "card_ref": "SACRIFICED_TOY_COST" }
+              },
+              "action_if_true_sequential": [
+                { "action_type": "DRAW_CARDS", "params": { "amount": 1 } },
+                {
+                  "action_type": "DELAY_NIGHTMARE_CREEP_TURNS",
+                  "params": { "turns": 1 }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "As an additional cost to cast this spell, sacrifice a Toy. Draw 2 cards and create 2 Spirits. ✧ If the sacrificed Toy was your First Memory, draw an additional card and delay the next Nightmare Creep effect by 1 turn."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL004",
+    "name": "Whisper of the Wisp That Used To Be You",
+    "card_type": "SPELL",
+    "cost": 2,
+    "text_flavor": "Hovering at vision's edge. Something of you preserved in its light.",
+    "text_rules": "Return a card from discard to hand ✧ If it's First Memory, create ❤ 👁️ If Nightmare Creep has begun, you may play that card immediately without cost",
+    "sub_types": ["REANIMATE", "MEMORY_TOKEN_INTERACT", "NIGHTMARE_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE_RETURN_CARD_FROM_DISCARD_TO_HAND",
+            "params": {
+              "fm_returned_bonus_action": {
+                "action_type": "CREATE_MEMORY_TOKENS",
+                "params": { "amount": 1 }
+              },
+              "nc_active_play_no_cost_option": true
+            }
+          }
+        ],
+        "description": "Return a card from your discard pile to your hand. ✧ If that card is your First Memory, create a Memory Token. 👁️ If Nightmare Creep has begun (i.e., a NC effect has resolved this game or is currently active), you may play the returned card immediately without paying its mana cost."
+      }
+    ],
+    "quantity_in_deck": 2,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL005",
+    "name": "Memory's Last Echo",
+    "card_type": "SPELL",
+    "cost": 3,
+    "text_flavor": "In the deepest darkness, a final shimmer of what was once beloved. It calls to you with a voice you almost recognize.",
+    "text_rules": "Look at top 6 cards of deck. You may play one Toy among them without cost. Put rest on bottom in any order ✧ If First Memory is among revealed cards, you may put it directly into play",
+    "sub_types": ["BROWSE_SEARCH"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "LOOK_AT_TOP_X_PLAY_TOY_NO_COST",
+            "params": {
+              "count": 6,
+              "fm_revealed_alt_action": "PUT_FM_INTO_PLAY_NO_COST"
+            }
+          }
+        ],
+        "description": "Look at the top 6 cards of your deck. You may play one Toy card from among them without paying its mana cost. Put the rest on the bottom of your deck in any order. ✧ If your First Memory is among the revealed cards, you may put it directly into play from among the revealed cards (this also counts as playing it for no cost if it's a Toy)."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL006",
+    "name": "Nightlight Glimmer In Empty Rooms",
+    "card_type": "SPELL",
+    "cost": 1,
+    "text_flavor": "The bulb flickers in a rhythm that almost forms words. It was your protector once.",
+    "text_rules": "Draw a card. Until end of turn: Whenever you sacrifice a Toy, create a Spirit ✧ If First Memory is sacrificed this way: Create ❤ instead of Spirit",
+    "sub_types": ["HAUNT", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "DRAW_CARDS", "params": { "amount": 1 } },
+          {
+            "action_type": "APPLY_TEMPORARY_EFFECT_PLAYER",
+            "params": {
+              "duration": "UNTIL_END_OF_TURN",
+              "effect_logic": {
+                "trigger": "WHEN_YOU_SACRIFICE_TOY",
+                "actions": [
+                  {
+                    "action_type": "CREATE_SPIRIT_UNLESS_FM_THEN_MEMORY_TOKEN",
+                    "params": { "card_ref": "SACRIFICED_TOY_EVENT" }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Draw a card. Until end of turn: Whenever you sacrifice a Toy, create a Spirit. ✧ If the sacrificed Toy is your First Memory, create a Memory Token instead of a Spirit."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL007",
+    "name": "Last Thread Clinging To Your Finger",
+    "card_type": "SPELL",
+    "cost": 1,
+    "text_flavor": "The string clings, refusing release. It remembers wholeness before ripping and darkness.",
+    "text_rules": "Draw a card. Until end of turn, whenever you sacrifice a Toy, create a Spirit token. If your First Memory is sacrificed this way, create a Memory Token instead of a Spirit.",
+    "sub_types": ["HAUNT", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          { "action_type": "DRAW_CARDS", "params": { "amount": 1 } },
+          {
+            "action_type": "APPLY_TEMPORARY_EFFECT_PLAYER",
+            "params": {
+              "duration": "UNTIL_END_OF_TURN",
+              "effect_logic": {
+                "trigger": "WHEN_YOU_SACRIFICE_TOY",
+                "actions": [
+                  {
+                    "action_type": "CREATE_SPIRIT_UNLESS_FM_THEN_MEMORY_TOKEN",
+                    "params": { "card_ref": "SACRIFICED_TOY_EVENT" }
+                  }
+                ]
+              }
+            }
+          }
+        ],
+        "description": "Draw a card. Until end of turn, whenever you sacrifice a Toy, create a Spirit token. If your First Memory is sacrificed this way, create a Memory Token instead of a Spirit."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL008",
+    "name": "Arms That No Longer Hold",
+    "card_type": "SPELL",
+    "cost": 2,
+    "text_flavor": "Absences shape themselves like what was lost. The longer loved, the deeper the hollow—a weight your arms never forget.",
+    "text_rules": "Choose one — - Sacrifice a Toy: Draw cards equal to turns that Toy was in play - Exile a Toy controlled for 3+ turns: Create that many ❤ ✧ If choosing First Memory for either option, add 1 to total",
+    "sub_types": ["SACRIFICE", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE_MODAL",
+            "params": {
+              "choice_id": "ARMS_NO_LONGER_HOLD_CHOICE",
+              "options": [
+                {
+                  "id": "SAC_DRAW",
+                  "description": "Sacrifice a Toy: Draw cards equal to turns that Toy was in play.",
+                  "action": {
+                    "action_type": "SACRIFICE_TOY_FOR_DRAW_BY_TURNS",
+                    "params": { "fm_bonus_draw": 1 }
+                  }
+                },
+                {
+                  "id": "EXILE_MEMORY",
+                  "description": "Exile a Toy controlled for 3+ turns: Create Memory Tokens equal to turns it was in play.",
+                  "action": {
+                    "action_type": "EXILE_OLD_TOY_FOR_MEMORY_BY_TURNS",
+                    "params": {
+                      "min_turns_controlled": 3,
+                      "fm_bonus_memory": 1
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "Choose one: \n- Sacrifice a Toy: Draw cards equal to the number of turns that Toy was in play. \n- Exile a Toy you've controlled for 3 or more turns: Create Memory Tokens equal to the number of turns it was in play. \n✧ If your First Memory is chosen for either option, add 1 to the total cards drawn or Memory Tokens created."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL009",
+    "name": "Laughter Preserved In Amber",
+    "card_type": "SPELL",
+    "cost": 3,
+    "text_flavor": "Crystallized joy with edges sharp enough to cut. A perfect fossil of happiness.",
+    "text_rules": "Convert any number of ❤ into equal number of Spirits. Draw a card for each ❤ converted ✧ If First Memory is in discard, you may return it to hand after effect resolves",
+    "sub_types": ["MEMORY_TOKEN_INTERACT", "HAUNT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "CONVERT_MEMORY_TOKENS_TO_SPIRITS_AND_DRAW",
+            "params": { "player_chooses_amount": true }
+          },
+          {
+            "action_type": "CONDITIONAL_EFFECT",
+            "params": {
+              "condition": {
+                "condition_type": "IS_FIRST_MEMORY_IN_DISCARD",
+                "params": {}
+              },
+              "action_if_true": {
+                "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+                "params": {
+                  "card_to_return_id": "FIRST_MEMORY",
+                  "from_zone": "DISCARD",
+                  "to_zone": "HAND"
+                }
+              }
+            }
+          }
+        ],
+        "description": "Convert any number of Memory Tokens into an equal number of Spirits. Draw a card for each Memory Token converted this way. ✧ If your First Memory is in your discard pile, you may return it to your hand after this effect resolves."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL010",
+    "name": "Last Goodbye Squeezing Tight",
+    "card_type": "SPELL",
+    "cost": 3,
+    "text_flavor": "The final embrace leaves an imprint. Some separations are just new beginnings.",
+    "text_rules": "Transform a Toy in play into 3 Spirits and create ❤ ✧ If that Toy was First Memory, create ❤❤ instead and return it to hand. Next 👁️ cannot cause you to sacrifice Spirits",
+    "sub_types": [
+      "SACRIFICE",
+      "HAUNT",
+      "MEMORY_TOKEN_INTERACT",
+      "NIGHTMARE_INTERACT"
+    ],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE_TRANSFORM_TOY",
+            "params": {
+              "spirits_created": 3,
+              "memory_tokens_created_base": 1,
+              "fm_transformed_bonus_memory": 1,
+              "fm_transformed_return_to_hand": true,
+              "additional_effect": {
+                "action_type": "PROTECT_FROM_SACRIFICE_SPIRITS_NEXT_NC",
+                "params": {}
+              }
+            }
+          }
+        ],
+        "description": "Choose a Toy in play. That Toy is sacrificed. Create 3 Spirits and 1 Memory Token. ✧ If the sacrificed Toy was your First Memory, create an additional Memory Token (2 total) and return your First Memory card to your hand from the discard pile. The next Nightmare Creep effect this game cannot cause you to sacrifice Spirits."
+      }
+    ],
+    "quantity_in_deck": 1,
+    "power": null,
+    "rarity": "Spell - Core Set"
+  },
+  {
+    "card_id": "TCSPL011",
+    "name": "The Moment Before Falling Asleep",
+    "card_type": "SPELL",
+    "cost": 2,
+    "text_flavor": "Between worlds, perfect clarity. One last memory before darkness claims all.",
+    "text_rules": "Choose one: - Place First Memory from discard on top of deck - Exile a card from hand face down: Next 👁️ creates ❤ instead of normal effect",
+    "sub_types": ["LOOP", "NIGHTMARE_INTERACT", "MEMORY_TOKEN_INTERACT"],
+    "effect_logic_list": [
+      {
+        "trigger": "ON_PLAY",
+        "conditions": [],
+        "actions": [
+          {
+            "action_type": "PLAYER_CHOICE_MODAL",
+            "params": {
+              "choice_id": "MOMENT_BEFORE_ASLEEP_CHOICE",
+              "options": [
+                {
+                  "id": "FM_TO_TOP",
+                  "description": "Place First Memory from discard on top of your deck.",
+                  "action": {
+                    "action_type": "RETURN_CARD_FROM_ZONE_TO_ZONE",
+                    "params": {
+                      "card_to_return_id": "FIRST_MEMORY",
+                      "from_zone": "DISCARD",
+                      "to_zone": "DECK_TOP"
+                    }
+                  }
+                },
+                {
+                  "id": "EXILE_FOR_NC_MOD",
+                  "description": "Exile a card from your hand face down: The next Nightmare Creep effect creates a Memory Token instead of its normal effect.",
+                  "action": {
+                    "action_type": "EXILE_CARD_FROM_HAND_PLAYER_CHOICE",
+                    "params": {
+                      "face_down": true,
+                      "on_exile_action": {
+                        "action_type": "MODIFY_NEXT_NIGHTMARE_CREEP_EFFECT",
+                        "params": {
+                          "new_effect_action": {
+                            "action_type": "CREATE_MEMORY_TOKENS",
+                            "params": { "amount": 1 }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "description": "Choose one: \n- Place your First Memory from your discard pile on top of your deck. \n- Exile a card from your hand face down: The next Nightmare Creep effect this game makes you create a Memory Token instead of its normal effect(s)."
       }
     ],
     "quantity_in_deck": 1,

@@ -49,6 +49,10 @@ This document outlines the development phases for building the "Tuck'd-In Terror
   - [x] Test basic effect resolution (`test_effect_engine.py`).
   - [x] Test Nightmare Creep application (`test_nightmare_creep.py`).
   - [x] Test basic win/loss condition triggering (`test_win_loss_checker.py`).
+- [x] **2.9. Finalize Core Game Enums (`enums.py`)**
+  - [x] Review all defined cards (`cards.json`) and objectives (`objectives.json`).
+  - [x] Ensure `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, `EffectActivationCostType`, and `PlayerChoiceType` in `enums.py` are comprehensive and include all distinct semantic operations identified through JSON data definition.
+  - [x] Remove placeholder comments (e.g., "# ... more actions") from `enums.py` once finalized for this stage.
 
 ---
 
@@ -76,7 +80,7 @@ This document outlines the development phases for building the "Tuck'd-In Terror
 **Objective:** Implement the full spectrum of card effects, keywords, advanced objective logic, and other nuanced game mechanics from "Tuck'd-In Terrors."
 
 - [ ] **4.1. Expand Full Effect Engine (`effect_engine.py`)**
-  - [ ] Systematically implement handlers for all defined `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, and `EffectActivationCostType` values from `enums.py`.
+  - [ ] Systematically implement handlers for all defined `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, and `EffectActivationCostType` values from `enums.py` (as finalized in 2.9).
   - [ ] Handle complex targeting, chained effects, dice rolls, Storm mechanic, conditional logic based on First Memory, etc.
 - [ ] **4.2. Implement All Objective Logic**
   - [ ] Ensure `game_setup.py` handles all specific `setup_instructions` from all 8 objectives.
