@@ -60,18 +60,18 @@ This document outlines the development phases for building the "Tuck'd-In Terror
 
 **Objective:** Create a foundational AI that can make valid plays within the "Tuck'd-In Terrors" ruleset, enabling automated game simulations.
 
-- [ ] **3.1. Define AI Player Base (`ai_player_base.py`)**
-  - [ ] Create an abstract base class for AI players, defining the interface for making decisions.
-- [ ] **3.2. Implement Action Generator Module (`action_generator.py`)**
-  - [ ] `get_valid_actions(game_state)` function to analyze the `GameState` and return a list of all legal actions the AI can take.
-- [ ] **3.3. Implement Basic AI v0.1 (`ai_profiles/random_ai.py`)**
-  - [ ] AI makes random valid selections from the actions provided by the `ActionGenerator`.
-  - [ ] Handles simple choices presented by `PLAYER_CHOICE` effects (e.g., Nightmare Creep choices).
-- [ ] **3.4. Integrate AI with Game Logic Engine**
-  - [ ] Ensure the AI's chosen actions are correctly passed to and processed by the `action_resolver.py` and `effect_engine.py` during the `main_phase`.
-- [ ] **3.5. Write Unit Tests (`tests/ai/`)**
-  - [ ] Test `action_generator.py` for various game states.
-  - [ ] Test basic AI decision-making and action execution within simple, controlled game scenarios.
+- [x] **3.1. Define AI Player Base (`ai_player_base.py`)**
+  - [x] Create an abstract base class for AI players, defining the interface for making decisions.
+- [x] **3.2. Implement Action Generator Module (`action_generator.py`)**
+  - [x] `get_valid_actions(game_state)` function to analyze the `GameState` and return a list of all legal actions the AI can take.
+- [x] **3.3. Implement Basic AI v0.1 (`ai_profiles/random_ai.py`)**
+  - [x] AI makes random valid selections from the actions provided by the `ActionGenerator`.
+  - [x] Handles simple choices presented by `PLAYER_CHOICE` effects (e.g., Nightmare Creep choices).
+- [x] **3.4. Integrate AI with Game Logic Engine**
+  - [x] Ensure the AI's chosen actions are correctly passed to and processed by the `action_resolver.py` and `effect_engine.py` during the `main_phase`.
+- [x] **3.5. Write Unit Tests (`tests/ai/`)**
+  - [x] Test `action_generator.py` for various game states.
+  - [x] Test basic AI decision-making and action execution within simple, controlled game scenarios.
 
 ---
 
