@@ -9,6 +9,7 @@ import uuid # For unique card instance IDs
 from ..game_elements.enums import Zone, TurnPhase, CardType
 from ..game_elements.card import Card, EffectLogic # Assuming EffectLogic might be tracked
 from ..game_elements.objective import ObjectiveCard
+from ..ai.ai_player_base import AIPlayerBase # Added import
 
 class CardInPlay:
     """
@@ -88,6 +89,7 @@ class GameState:
         self.win_status: Optional[str] = None # E.g., "PRIMARY_WIN", "ALTERNATIVE_WIN", "LOSS_NIGHTFALL"
 
         self.game_log: List[str] = []
+        self.ai_player: Optional[AIPlayerBase] = None # Attribute for the AI player instance
 
     def initialize_objective_progress(self) -> Dict[str, Any]:
         """
@@ -123,7 +125,7 @@ class GameState:
         try:
             from_zone_list.remove(card_obj) # Relies on object identity or proper __eq__
             to_zone_list.append(card_obj)
-            self.add_log_entry(f"Moved card '{card_obj.name}' from {from_zone_list_name(from_zone_list, self)} to {from_zone_list_name(to_zone_list, self)}.")
+            # self.add_log_entry(f"Moved card '{card_obj.name}' from {from_zone_list_name(from_zone_list, self)} to {from_zone_list_name(to_zone_list, self)}.")
         except ValueError:
             self.add_log_entry(f"Error: Card '{card_obj.name}' not found in specified from_zone during move.", level="ERROR")
 
@@ -134,9 +136,9 @@ class GameState:
                 f"Discard: {len(self.discard_pile)}, Objective: {self.current_objective.title if self.current_objective else 'None'}>")
 
 # Helper to get zone name for logging, not part of the class
-def from_zone_list_name(zone_list: List[Card], game_state: GameState) -> str:
-    if zone_list is game_state.deck: return "Deck"
-    if zone_list is game_state.hand: return "Hand"
-    if zone_list is game_state.discard_pile: return "Discard"
-    if zone_list is game_state.exile_zone: return "Exile"
-    return "UnknownZone"
+# def from_zone_list_name(zone_list: List[Card], game_state: GameState) -> str:
+#     if zone_list is game_state.deck: return "Deck"
+#     if zone_list is game_state.hand: return "Hand"
+#     if zone_list is game_state.discard_pile: return "Discard"
+#     if zone_list is game_state.exile_zone: return "Exile"
+#     return "UnknownZone"

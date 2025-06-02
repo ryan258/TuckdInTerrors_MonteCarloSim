@@ -1,144 +1,131 @@
-# Tuck'd-In Terrors Monte Carlo Simulator - Project Roadmap
+# Tuck'd-In Terrors: Monte Carlo Simulator Roadmap
 
-This document outlines the development phases for building the "Tuck'd-In Terrors" Monte Carlo simulator in Python. Our goal is to create a tool that can provide valuable insights for game balancing and design improvement.
+This roadmap outlines the planned development phases for the Tuck'd-In Terrors Monte Carlo Simulator.
 
----
+## Phase 1: Core Game Logic & Basic Simulation (Completed)
 
-## Phase 1: Foundation & Data Modeling (The Digital DNA)
+- **Objective:** Implement the fundamental game rules, card structures, and a very basic simulation loop.
+- **Key Tasks:**
+  - [x] Define core data structures (Card, Toy, Spell, Ritual, Objective, GameState).
+  - [x] Implement basic card parsing from JSON.
+  - [x] Implement GameState management (deck, hand, discard, play area, resources: mana, spirits, memory tokens).
+  - [x] Implement core turn phases (Begin, Main, End).
+  - [x] Basic mana generation and card draw.
+  - [x] Initial Action Resolver for playing cards (basic cost payment, moving card to play).
+  - [x] Basic EffectEngine capable of simple, direct actions (e.g., DRAW_CARDS, ADD_MANA, CREATE_SPIRIT_TOKENS, CREATE_MEMORY_TOKENS).
+  - [x] Initial Objective "The First Night" win/loss condition checking.
+  - [x] Basic Nightmare Creep mechanism for "The First Night".
+  - [x] Simple AI (RandomAI) to make basic play decisions (play first valid card).
+  - [x] Rudimentary simulation runner (single game, basic logging).
+  - [x] Initial test suite for core components.
+  - [x] First Memory basic implementation (selection, tracking in GameState).
 
-**Objective:** Define the core data structures and formats that will represent every aspect of "Tuck'd-In Terrors" in code. This forms the blueprint for all subsequent logic.
+## Phase 2: Expanding Effect Engine & Card Interactions (Completed)
 
-- [x] **1.1. Define Game Element Schemas & Enums (`enums.py`)**
-  - [x] Create `CardType`, `Zone`, `TurnPhase`, `ResourceType` enums.
-  - [x] Define initial `CardSubType`, `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, `EffectActivationCostType`, and `PlayerChoiceType` enums.
-- [x] **1.2. Define Card Object Structure (`card.py`)**
-  - [x] Create base `Card` class.
-  - [x] Create `Toy`, `Ritual`, `Spell` subclasses.
-  - [x] Define `EffectLogic` class structure (including fields for `trigger`, `conditions`, `actions`, `activation_costs`, `is_echo_effect`, `is_once_per_turn`, `is_once_per_game`).
-- [x] **1.3. Define Objective Card Structure (`objective.py`)**
-  - [x] Create `ObjectiveCard` class.
-  - [x] Define `ObjectiveLogicComponent` class structure for representing win conditions, setup instructions, Nightmare Creep logic, etc.
-- [x] **1.4. Create Initial JSON Data Files (`data/`)** _(You have the examples; populating with full game data is an ongoing task for you as needed.)_
-- [x] **1.5. Implement Data Loaders (`data_loaders.py`)**
-  - [x] Create `load_card_definitions(filepath)` function.
-  - [x] Create `load_objective_definitions(filepath)` function.
-- [x] **1.6. Write Initial Unit Tests (`tests/game_elements/`)**
-  - [x] `test_enums.py` (if applicable for any complex enum logic).
-  - [x] `test_card.py`: Test `Card`/subclass instantiation.
-  - [x] `test_objective.py`: Test `ObjectiveCard` and `ObjectiveLogicComponent` instantiation.
-  - [x] `test_data_loaders.py`: Test parsing of example JSON files.
+- **Objective:** Enhance the EffectEngine to handle more complex effects, conditions, and triggers. Implement a wider range of card abilities.
+- **Key Tasks:**
+  - [x] Implement effect triggers (ON_PLAY, ON_DISCARD, etc.).
+  - [x] Implement conditional logic for effects (IF_X_THEN_Y).
+    - [x] `IS_FIRST_MEMORY`, `IS_FIRST_MEMORY_IN_PLAY`, `IS_FIRST_MEMORY_IN_DISCARD`
+    - [x] `HAS_COUNTER_TYPE_VALUE_GE`
+    - [x] `DECK_SIZE_LE`
+    - [x] `IS_MOVING_FROM_ZONE`, `IS_MOVING_TO_ZONE` (initial support)
+  - [x] Implement more action types:
+    - [x] `PLACE_COUNTER_ON_CARD`
+    - [x] `SACRIFICE_CARD_IN_PLAY` (target SELF or specific ID)
+    - [x] `RETURN_THIS_CARD_TO_HAND` (from play)
+    - [x] `MILL_DECK`
+    - [x] `EXILE_CARD_FROM_ZONE` (Deck, Hand, Discard)
+    - [x] `RETURN_CARD_FROM_ZONE_TO_ZONE` (Discard/Exile to Hand/Deck Top)
+    - [x] `BROWSE_DECK` (placeholder for AI choice)
+  - [x] Refine AI to handle slightly more diverse actions.
+  - [x] Implement effects for a representative subset of initial cards (e.g., Toy Cow, Plushcaller, some spells).
+  - [x] Detailed logging for game events and effect resolution.
+  - [x] Expand test coverage for new effects and interactions.
+  - [x] First Memory interaction refinement for implemented cards.
 
----
+## Phase 3: Advanced Game Mechanics & Objective Implementation (Completed)
 
-## Phase 2: Core Game Logic Implementation (The Heartbeat)
+- **Objective:** Implement more advanced game mechanics, fully support "The First Night" objective with all its rules, and prepare for more objectives.
+- **Key Tasks:**
+  - [x] Full Nightmare Creep logic for "The First Night" (discard or sacrifice spirit).
+    - [x] (Covered by early Phase 4 PLAYER_CHOICE implementation)
+  - [x] Implement "Haunt" keyword mechanics (return from discard, associated effects).
+  - [x] Implement "Echo" keyword mechanics (effects on re-entry or specific conditions).
+  - [x] Refine interaction between `ActionResolver` and `EffectEngine` for complex sequences.
+  - [x] Track objective-specific progress (e.g., distinct toys played, mana from effects).
+  - [x] Implement remaining cards relevant to "The First Night" and common mechanics.
+  - [x] Advanced test cases including multi-turn scenarios and complex interactions for "The First Night".
+  - [x] Ensure First Memory interactions are robust across various zones and states.
 
-**Objective:** Build the fundamental engine that can process turns, manage resources, and execute basic card plays according to "Tuck'd-In Terrors" rules.
+## Phase 4: Player Choice, AI Enhancement & Multi-Objective Foundation (In Progress)
 
-- [x] **2.1. Define GameState Class (`game_state.py`)**
-- [x] **2.2. Implement Game Setup Module (`game_setup.py`)**
-- [x] **2.3. Implement Turn Structure Engine (`turn_manager.py`)** (Now fully integrated with other Phase 2 modules)
-- [x] **2.4. Implement Basic Action & Resource Management (`action_resolver.py`)** (Now fully integrated with EffectEngine)
-- [x] **2.5. Implement Initial Effect Engine (Simplified) (`effect_engine.py`)**
-- [x] **2.6. Implement Basic Nightmare Creep Module (`nightmare_creep.py`)** (Now fully integrated with TurnManager & EffectEngine)
-- [x] **2.7. Implement Basic Win/Loss Condition Checker (`win_loss_checker.py`)** (Now fully integrated with TurnManager)
-- [x] **2.8. Write Unit Tests (`tests/game_logic/`)**
-  - [x] `test_game_state.py`
-  - [x] Test game setup for different objectives (`test_game_setup.py`).
-  - [x] Test turn progression and phase transitions (`test_turn_manager.py`).
-  - [x] Test simple actions and resource changes (`test_action_resolver.py`).
-  - [x] Test basic effect resolution (`test_effect_engine.py`).
-  - [x] Test Nightmare Creep application (`test_nightmare_creep.py`).
-  - [x] Test basic win/loss condition triggering (`test_win_loss_checker.py`).
-- [x] **2.9. Finalize Core Game Enums (`enums.py`)**
-  - [x] Review all defined cards (`cards.json`) and objectives (`objectives.json`).
-  - [x] Ensure `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, `EffectActivationCostType`, and `PlayerChoiceType` in `enums.py` are comprehensive and include all distinct semantic operations identified through JSON data definition.
-  - [x] Remove placeholder comments (e.g., "# ... more actions") from `enums.py` once finalized for this stage.
+- **Objective:** Introduce systems for handling player choices within effects, make the AI more capable of handling these choices, and lay the groundwork for easily adding more objectives.
+- **Key Tasks:**
+  - [x] Design and implement `PLAYER_CHOICE` action type in `EffectEngine`.
+    - [x] `PlayerChoiceType` enum defined.
+    - [x] `CHOOSE_YES_NO` implemented and tested (e.g., for "Echo Bear" like effects).
+    - [x] `DISCARD_CARD_OR_SACRIFICE_SPIRIT` implemented and tested (handles Nightmare Creep for "The First Night").
+      - [x] Successfully triggers `DISCARD_CARDS_CHOSEN_FROM_HAND` or `SACRIFICE_RESOURCE`.
+    - [x] `CHOOSE_CARD_FROM_HAND` (as sub-choice for discard) implemented and tested.
+    - [x] `CANCEL_IMPENDING_LEAVE_PLAY` action implemented and tested.
+  - [ ] Implement other `PlayerChoiceType` enum values as needed by card effects:
+    - [ ] `CHOOSE_TARGET_FOR_EFFECT` (e.g., choose a Toy in play, card in discard).
+      - [ ] Define how options are presented (list of `CardInPlay` instances, `Card` definitions).
+      - [ ] Implement AI logic to select from these targets.
+    - [ ] `ORDER_CARDS` (e.g., for "Browse deck and reorder").
+    - [ ] `DISTRIBUTE_RESOURCES` (e.g., distribute N counters among M targets).
+    - [ ] `CHOOSE_MODE` (for modal spells/effects: "Choose one - ...; or Choose one - ...").
+  - [ ] Refine `AIPlayerBase` and `RandomAI` to handle a wider variety of `PlayerChoiceType` options.
+    - [ ] Ensure `RandomAI` can intelligently pick from provided valid options for new choice types.
+  - [ ] Implement a selection of cards from `cards.json` that heavily utilize `PLAYER_CHOICE` to drive development.
+    - [ ] Example: "Patchwork Pal" (Choose a counter type), "Moment of Lucidity" (Choose card from discard).
+  - [ ] Begin structuring for multiple objectives:
+    - [ ] Ensure `ObjectiveCard` class can define varied Nightmare Creep effects that leverage `PLAYER_CHOICE`.
+    - [ ] Ensure win condition checking is flexible.
+  - [ ] Comprehensive testing for all implemented player choice scenarios.
 
----
+## Phase 5: Simulation Expansion & Initial Analysis
 
-## Phase 3: AI Player Development (The Phantom Hand)
+- **Objective:** Run simulations for multiple games, implement data logging for key metrics, and perform initial balance analysis based on "The First Night".
+- **Key Tasks:**
+  - [ ] Simulation Runner: Configure and run batches of simulations (e.g., 100s or 1000s of games).
+  - [ ] Data Logging:
+    - [ ] Log win/loss rates.
+    - [ ] Log turn count for game end.
+    - [ ] Log reasons for win/loss (primary, alternative, nightfall).
+    - [ ] Log key objective progress metrics (e.g., spirits created, mana from effects for "The First Night").
+    - [ ] Log usage/impact of First Memory.
+  - [ ] Basic Analysis Engine:
+    - [ ] Read logged data.
+    - [ ] Calculate and display summary statistics (mean, median, std dev for key metrics).
+    - [ ] Generate simple plots/histograms for distributions.
+  - [ ] UI for Results: Basic textual or simple graphical display of simulation results.
+  - [ ] Implement 2-3 more distinct objectives with their unique rules, creep effects, and win conditions.
+    - [ ] Test these objectives with the simulation runner.
+  - [ ] Refine AI for better decision-making based on observed simulation patterns (if time allows, otherwise basic RandomAI is fine for initial metrics).
 
-**Objective:** Create a foundational AI that can make valid plays within the "Tuck'd-In Terrors" ruleset, enabling automated game simulations.
+## Phase 6: Advanced AI, Broader Objective Coverage & Balancing
 
-- [x] **3.1. Define AI Player Base (`ai_player_base.py`)**
-  - [x] Create an abstract base class for AI players, defining the interface for making decisions.
-- [x] **3.2. Implement Action Generator Module (`action_generator.py`)**
-  - [x] `get_valid_actions(game_state)` function to analyze the `GameState` and return a list of all legal actions the AI can take.
-- [x] **3.3. Implement Basic AI v0.1 (`ai_profiles/random_ai.py`)**
-  - [x] AI makes random valid selections from the actions provided by the `ActionGenerator`.
-  - [x] Handles simple choices presented by `PLAYER_CHOICE` effects (e.g., Nightmare Creep choices).
-- [x] **3.4. Integrate AI with Game Logic Engine**
-  - [x] Ensure the AI's chosen actions are correctly passed to and processed by the `action_resolver.py` and `effect_engine.py` during the `main_phase`.
-- [x] **3.5. Write Unit Tests (`tests/ai/`)**
-  - [x] Test `action_generator.py` for various game states.
-  - [x] Test basic AI decision-making and action execution within simple, controlled game scenarios.
+- **Objective:** Develop more sophisticated AI profiles, implement most/all remaining objectives, and use simulation data for comprehensive game balance analysis and card adjustments.
+- **Key Tasks:**
+  - [ ] AI Profiles:
+    - [ ] Develop an AI that prioritizes specific win conditions.
+    - [ ] Develop an AI that might attempt to play more "thematically" or use specific card combos.
+  - [ ] Implement all remaining defined Objective cards.
+  - [ ] Full `cards.json` Implementation: Aim to implement effects for all (or nearly all) cards.
+  - [ ] Advanced Simulation Analysis:
+    - [ ] Compare performance across different objectives and AI profiles.
+    - [ ] Identify under/overpowered cards or mechanics.
+    - [ ] Analyze resource curves (mana, spirits, memory tokens) across game length.
+  - [ ] Balancing Iteration:
+    - [ ] Propose and (optionally) implement adjustments to card costs/effects or objective parameters based on analysis.
+    - [ ] Re-run simulations to test impact of balance changes.
+  - [ ] Documentation: Finalize documentation for simulator usage and findings.
 
----
+## Post-Launch / Future Enhancements
 
-## Phase 4: Advanced Game Mechanics & Comprehensive Effect Implementation (The Deep Magic)
-
-**Objective:** Implement the full spectrum of card effects, keywords, advanced objective logic, and other nuanced game mechanics from "Tuck'd-In Terrors."
-
-- [ ] **4.1. Expand Full Effect Engine (`effect_engine.py`)**
-  - [ ] Systematically implement handlers for all defined `EffectTriggerType`, `EffectConditionType`, `EffectActionType`, and `EffectActivationCostType` values from `enums.py` (as finalized in 2.9).
-  - [ ] Handle complex targeting, chained effects, dice rolls, Storm mechanic, conditional logic based on First Memory, etc.
-- [ ] **4.2. Implement All Objective Logic**
-  - [ ] Ensure `game_setup.py` handles all specific `setup_instructions` from all 8 objectives.
-  - [ ] Ensure `win_loss_checker.py` correctly evaluates all primary and alternative win conditions.
-  - [ ] Ensure `nightmare_creep.py` implements the full escalating logic for all objectives.
-- [ ] **4.3. Implement First Memory Special Interactions & Evolution**
-  - [ ] Full support for ✧ (Echo) effects in the `EffectEngine`.
-  - [ ] Implement the "Evolving First Memory" advanced mechanic (if its rules are defined).
-- [ ] **4.4. Implement Other Advanced Game Rules**
-  - [ ] E.g., Flashback mechanic, Memory Anchor variant rules (if chosen for simulation).
-- [ ] **4.5. Write Comprehensive Integration Tests**
-  - [ ] Test complex card interactions, full objective playthroughs (with basic AI), and edge cases.
-
----
-
-## Phase 5: Simulation Orchestration & Data Analysis (The Oracle)
-
-**Objective:** Enable the execution of a large number of automated game simulations, collect detailed data from these simulations, and generate meaningful analysis and insights.
-
-- [ ] **5.1. Implement Simulation Runner Module (`simulation_runner.py`)**
-  - [ ] `run_simulations(objective_id, num_simulations, ai_profile_id)` function to manage batches of games.
-  - [ ] Robust error handling for individual simulation failures within a batch.
-- [ ] **5.2. Implement Comprehensive Data Logging Module (`data_logger.py`)**
-  - [ ] Log all specified data points for each completed simulation (outcome, turns, resources, objective progress, key events).
-  - [ ] Store logs in a structured format (e.g., JSON lines, CSV).
-- [ ] **5.3. Implement Data Aggregation & Analysis Engine (`analysis_engine.py`)**
-  - [ ] Functions to process raw log data.
-  - [ ] Calculate statistics: win rates (primary/alternative/loss), average game length, resource economy metrics, objective-specific success metrics.
-- [ ] **5.4. Integrate Analysis with UI/Reporting (`ui/results_display.py`)**
-  - [ ] Functions to display key findings in a readable format (console output initially).
-  - [ ] (Future: Potentially generate simple reports or data for external visualization tools).
-- [ ] **5.5. Write Tests for Simulation and Analysis Components**
-  - [ ] Test data logging accuracy and basic analysis calculations on sample log data.
-
----
-
-## Phase 6: Iteration, Testing & Refinement (The Polish)
-
-**Objective:** Thoroughly debug and validate the entire simulation, optimize performance, enhance AI strategies, and ultimately use the tool to analyze and inform the balance of "Tuck'd-In Terrors."
-
-- [ ] **6.1. Conduct Extensive Debugging & Validation**
-  - [ ] Rule-by-rule validation against the "Tuck'd-In Terrors" rulebook.
-  - [ ] Test known card combos and edge cases identified during design or playtesting.
-- [ ] **6.2. Enhance AI Strategy & Profile Development (`ai/ai_profiles/`)**
-  - [ ] Develop more sophisticated heuristic-based AI.
-  - [ ] Implement Objective-focused AI profiles that prioritize actions relevant to the current objective.
-  - [ ] Improve AI's strategic resource management and use of advanced mechanics (Flashback, Evolving First Memory).
-- [ ] **6.3. Perform Performance Optimization**
-  - [ ] Profile the simulation code to identify and optimize performance bottlenecks, especially in the game logic loop and AI decision-making.
-- [ ] **6.4. Refine Usability & Interface (of the simulator tool)**
-  - [ ] Improve configuration options for running simulations.
-  - [ ] Enhance the clarity and depth of results presentation.
-- [ ] **6.5. Conduct Final Validation & Balance Analysis Application**
-  - [ ] Run extensive test suites across all objectives using various AI profiles.
-  - [ ] Analyze aggregated data to identify balance issues (over/underpowered cards, objective difficulty, resource flow problems).
-  - [ ] (Advanced) Implement functionality to simulate "What-If" scenarios with minor rule or card data changes to test their impact.
-  - [ ] Generate reports to inform potential game design adjustments.
-
----
-
-This roadmap should provide a clear path forward. We can check off items as we complete them.
+- [ ] User Interface for configuring simulations (beyond script parameters).
+- [ ] More detailed "play-by-play" game log replay feature.
+- [ ] Integration with a database for storing and querying large-scale simulation results.
+- [ ] Machine Learning approaches for AI player strategies or balance testing.
