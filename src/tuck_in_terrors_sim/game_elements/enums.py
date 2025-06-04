@@ -118,6 +118,7 @@ class EffectActionType(Enum):
     REMOVE_SPIRIT_TOKENS = auto()
     CREATE_MEMORY_TOKENS = auto()
     REMOVE_MEMORY_TOKENS = auto()
+    SACRIFICE_RESOURCE = auto()
     DRAW_CARDS = auto()
     DISCARD_CARDS = auto()
     MILL_CARDS = auto() # EffectEngine was using MILL_DECK

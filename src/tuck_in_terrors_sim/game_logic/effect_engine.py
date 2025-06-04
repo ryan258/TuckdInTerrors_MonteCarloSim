@@ -75,7 +75,7 @@ class EffectEngine:
                      return True
             return False
 
-        elif condition_type == EffectConditionType.THIS_CARD_IS_TAPPED:
+        elif condition_type == EffectConditionType.CARD_IS_TAPPED:
             return card_instance.is_tapped if card_instance else False
             
         elif condition_type == EffectConditionType.EVENT_CARD_IS_TYPE: # Line 75 is likely around here
@@ -104,10 +104,10 @@ class EffectEngine:
                 return moving_card_destination_zone_enum == target_zone_enum
             return False
             
-        elif condition_type == EffectConditionType.CARD_HAS_BEEN_IN_PLAY_FOR_X_TURNS_GE:
-            if not card_instance or card_instance.turn_entered_play is None: return False
-            turns_in_play_required = params.get("turns", 0)
-            return (game_state.current_turn - card_instance.turn_entered_play) >= turns_in_play_required
+        # elif condition_type == EffectConditionType.CARD_HAS_BEEN_IN_PLAY_FOR_X_TURNS_GE:
+        #     if not card_instance or card_instance.turn_entered_play is None: return False
+        #     turns_in_play_required = params.get("turns", 0)
+        #     return (game_state.current_turn - card_instance.turn_entered_play) >= turns_in_play_required
 
         elif condition_type == EffectConditionType.HAS_COUNTER_TYPE_VALUE_GE:
             if not card_instance: return False
@@ -191,7 +191,7 @@ class EffectEngine:
             player.memory_tokens += count
             game_state.add_log_entry(f"P{player.player_id} creates {count} Memory(s). Total: {player.memory_tokens}")
             
-        elif action_type == EffectActionType.MILL_DECK:
+        elif action_type == EffectActionType.MILL_CARDS:
             count = params.get("count", 1)
             player.mill_deck(count, game_state)
 

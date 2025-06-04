@@ -65,7 +65,7 @@ class TurnManager:
                     # This logic might be complex depending on how "turns in play" is defined
                     # For simplicity, we can assume it's just a counter for now or handled elsewhere
                     pass 
-                card_instance.effects_applied_this_turn.clear()
+                card_instance.effects_active_this_turn.clear()
 
 
         active_player.has_played_free_toy_this_turn = False
@@ -186,7 +186,7 @@ class TurnManager:
         if not active_player:
             gs.add_log_entry("End Turn: No active player!", level="ERROR"); return
 
-        gs.current_phase = TurnPhase.END_TURN
+        gs.current_phase = TurnPhase.END_TURN_PHASE
         gs.add_log_entry(f"End Phase - Player {active_player.player_id}.")
 
         # End player turn effects

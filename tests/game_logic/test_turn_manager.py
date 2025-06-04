@@ -62,7 +62,7 @@ class TestTurnManager:
         turn_manager.execute_full_turn() 
 
         # Assertions after the full turn has executed:
-        assert game_state.current_phase == TurnPhase.END_TURN # After full turn
+        assert game_state.current_phase == TurnPhase.END_TURN_PHASE # After full turn
         assert tapped_card.is_tapped is False # Untapped during begin phase of next turn (Turn 1)
         
         # Mana gain logic: Turn 1 sets mana to 1 (or objective override).

@@ -30,7 +30,7 @@ class NightmareCreepModule:
             return None
 
         # Determine Trigger
-        trigger_str = effect_json_data.get("trigger", EffectTriggerType.ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN.name)
+        trigger_str = effect_json_data.get("trigger", EffectTriggerType.WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER.name)
         try:
             trigger_enum = EffectTriggerType[trigger_str.upper()]
         except KeyError:

@@ -197,11 +197,11 @@ class TestDataLoaders:
         # The stdout indicates "Cost data ... provided but no valid cost types recognized. Interpreting as no cost."
         # This implies from_dict (and thus _parse_cost) likely returns None or an empty Cost object.
         
-        cost_obj_parsed = _parse_cost({"cost_type": "MANA", "params": {"amount": 3}})
-        # This will fail if Cost.from_dict doesn't create a Cost object
-        # For now, we expect it to fail the 'cost_type' assertion due to None.
-        with pytest.raises(AttributeError, match="'NoneType' object has no attribute 'cost_type'"):
-             assert cost_obj_parsed.cost_type == EffectActivationCostType.MANA
+        cost_data_new_format = {"cost_type": "MANA", "params": {"amount": 3}}
+        cost_obj_parsed = _parse_cost(cost_data_new_format)
+        assert cost_obj_parsed is not None, "Cost object should be created for new format"
+        assert EffectActivationCostType.MANA in cost_obj_parsed.cost_details
+        assert cost_obj_parsed.cost_details[EffectActivationCostType.MANA] == {"amount": 3}
 
 
         assert _parse_cost(None) is None
