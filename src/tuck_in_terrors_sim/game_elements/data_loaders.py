@@ -18,7 +18,6 @@ DEFAULT_OBJECTIVES_FILE = os.path.join(BASE_DIR, "..", "..", "..", "data", "obje
 # --- Helper Functions for Parsing ---
 
 def _parse_cost(cost_data: Optional[Dict[str, Any]]) -> Optional[Cost]:
-    # This uses Cost.from_dict which should handle parsing from string keys
     return Cost.from_dict(cost_data)
 
 
@@ -27,7 +26,6 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
     if not action_type_str:
         raise ValueError("Effect action data must have an 'action_type'.")
     try:
-        # Ensure action_type_str is uppercase before enum lookup
         effect_action_type = EffectActionType[action_type_str.upper()]
     except KeyError:
         raise ValueError(f"Unknown EffectActionType: {action_type_str}")
@@ -40,17 +38,14 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
         "on_selection_actions", "sub_actions"
     ]
 
-    # Recursively parse sub-actions for relevant action types
     if effect_action_type in [EffectActionType.CONDITIONAL_EFFECT, EffectActionType.PLAYER_CHOICE]:
         for key in sub_action_keys:
             if key in params and isinstance(params[key], list):
                 try:
-                    # Ensure each item in the list is a dict before parsing
                     params[key] = [_parse_effect_action(sa_data) for sa_data in params[key] if isinstance(sa_data, dict)]
                 except ValueError as e:
                     raise ValueError(f"Error parsing sub-action under '{key}' for '{action_type_str}': {e}")
         
-        # Handle actions_map if its values are lists of actions
         if "actions_map" in params and isinstance(params["actions_map"], dict):
             parsed_actions_map = {}
             for map_key, map_value in params["actions_map"].items():
@@ -60,49 +55,41 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
                     except ValueError as e:
                          raise ValueError(f"Error parsing sub-action in 'actions_map' under key '{map_key}' for '{action_type_str}': {e}")
                 else:
-                    # If map values are not lists of actions, keep them as is
                     parsed_actions_map[map_key] = map_value 
             params["actions_map"] = parsed_actions_map
 
-    # Helper to resolve enum strings within params, robustly handling non-string values or KeyErrors
     def _resolve_param_enum(param_value: Any, enum_class: type) -> Any:
         if isinstance(param_value, str):
             try:
                 return enum_class[param_value.upper()]
             except KeyError:
-                # If it's a string but not a valid enum member, keep it as string.
-                # The consuming logic in EffectEngine might handle specific string values
-                # or raise a more specific error if an enum is strictly required there.
-                # print(f"Warning: Invalid enum string '{param_value}' for {enum_class.__name__} in action params. Kept as string.")
                 pass 
-        return param_value # Return original value if not string or if string is not a matching enum key
+        return param_value 
 
-    # Parse enums within params where applicable
     for param_key, param_value in params.items():
         if param_key in ["zone", "from_zone", "to_zone"]:
             params[param_key] = _resolve_param_enum(param_value, Zone)
-        elif param_key == "card_type" and "target_card_filter" not in params : # Avoid double parsing if in target_card_filter
+        elif param_key == "card_type" and "target_card_filter" not in params : 
             params[param_key] = _resolve_param_enum(param_value, CardType)
         elif param_key == "resource_type":
             params[param_key] = _resolve_param_enum(param_value, ResourceType)
-        elif param_key == "choice_type": # For PLAYER_CHOICE
+        elif param_key == "choice_type": 
             params[param_key] = _resolve_param_enum(param_value, PlayerChoiceType)
-        elif param_key == "trigger_type": # For effects that might specify a sub-trigger
+        elif param_key == "trigger_type": 
              params[param_key] = _resolve_param_enum(param_value, EffectTriggerType)
 
 
-    # Parse target_card_filter specifically
     target_card_filter = params.get("target_card_filter")
     if target_card_filter and isinstance(target_card_filter, dict):
         parsed_filter = {}
-        for k, v_val in target_card_filter.items(): # Renamed v_str to v_val as it might not be string
+        for k, v_val in target_card_filter.items(): 
             if k == "card_type":
                 parsed_filter[k] = _resolve_param_enum(v_val, CardType)
             elif k == "zone":
                 parsed_filter[k] = _resolve_param_enum(v_val, Zone)
             elif k == "subtype": 
                 parsed_filter[k] = _resolve_param_enum(v_val, CardSubType)
-            else: # For other filter keys like 'name', 'is_tapped', 'controller' etc.
+            else: 
                 parsed_filter[k] = v_val
         params["target_card_filter"] = parsed_filter
         
@@ -121,7 +108,6 @@ def _parse_condition(condition_data: Optional[Dict[str, Any]]) -> Optional[Dict[
     if not condition_type_str:
         raise ValueError("Condition data must have a 'condition_type'.")
     try:
-        # Ensure condition_type_str is uppercase for enum lookup
         condition_type_enum = EffectConditionType[condition_type_str.upper()]
     except KeyError:
         raise ValueError(f"Unknown EffectConditionType: {condition_type_str}")
@@ -133,16 +119,14 @@ def _parse_condition(condition_data: Optional[Dict[str, Any]]) -> Optional[Dict[
             try:
                 return enum_class[param_value.upper()]
             except KeyError:
-                # print(f"Warning: Invalid enum string '{param_value}' for {enum_class.__name__} in condition params. Kept as string.")
                 pass
         return param_value
         
-    # Parse specific enum values within params if needed
     if "resource_type" in params:
         params["resource_type"] = _resolve_param_enum(params["resource_type"], ResourceType)
-    if "card_type" in params: # For conditions like EVENT_CARD_IS_TYPE
+    if "card_type" in params: 
         params["card_type"] = _resolve_param_enum(params["card_type"], CardType)
-    if "zone" in params: # For conditions like IS_MOVING_FROM_ZONE/TO_ZONE
+    if "zone" in params: 
         params["zone"] = _resolve_param_enum(params["zone"], Zone)
 
     parsed_condition_dict[condition_type_enum] = params
@@ -168,15 +152,12 @@ def _parse_effect(effect_data: Dict[str, Any], card_name_context: str, card_id_c
             raise ValueError(f"Action data (idx {i}) for '{trigger_str}' on '{card_name_context}' must be a dictionary.")
         try:
             parsed_actions.append(_parse_effect_action(action_dict))
-        except ValueError as e: # Catch potential errors from _parse_effect_action
+        except ValueError as e: 
             raise ValueError(f"Error parsing action (idx {i}) for effect '{trigger_str}' on card '{card_name_context}': {e}")
 
-    # Parse condition and cost
-    parsed_condition = _parse_condition(effect_data.get("condition")) # Returns Optional[Dict]
-    parsed_cost = _parse_cost(effect_data.get("cost")) # Returns Optional[Cost]
+    parsed_condition = _parse_condition(effect_data.get("condition")) 
+    parsed_cost = _parse_cost(effect_data.get("cost")) 
     
-    # Generate a somewhat unique effect_id if not provided.
-    # Hash of actions can be unstable if action dict order changes, but better than just index.
     effect_id_str = effect_data.get("effect_id", f"{card_id_context}_{trigger_enum.name}_{len(parsed_actions)}_{sum(ord(c) for c in json.dumps(raw_actions_list)) % 10000}")
 
 
@@ -188,7 +169,7 @@ def _parse_effect(effect_data: Dict[str, Any], card_name_context: str, card_id_c
         description=effect_data.get("description", ""),
         cost=parsed_cost,
         is_replacement_effect=effect_data.get("is_replacement_effect", False),
-        temporary_effect_data=effect_data.get("temporary_effect_data"), # Pass as is
+        temporary_effect_data=effect_data.get("temporary_effect_data"), 
         source_card_id=card_id_context
     )
 
@@ -214,22 +195,18 @@ def load_cards(file_path: str = DEFAULT_CARDS_FILE) -> List[Card]:
         if not card_name:
             raise ValueError("Card data must have a 'name'.")
         
-        # *** UPDATED TO READ "card_type" and "cost" from JSON ***
         card_type_json_val = card_data_dict.get("card_type") 
-        if not card_type_json_val: # Check if the key exists and has a non-empty value
+        if not card_type_json_val: 
             raise ValueError(f"Card '{card_name}' must have a 'card_type' field in JSON with a non-empty value.")
         
-        # Handle potential composite types like "TOY — ↻ ✦" by taking the first part
         main_type_str = str(card_type_json_val).split("—")[0].strip()
         try:
             card_type_enum_val = CardType[main_type_str.upper()]
         except KeyError:
-            # If it's not in CardType enum, it's an invalid type
             raise ValueError(f"Unknown CardType derived: '{main_type_str}' (from JSON value: '{card_type_json_val}') for card '{card_name}'.")
 
         cost_from_json = card_data_dict.get("cost", 0) 
         if not isinstance(cost_from_json, int):
-            # Attempt to convert if it's a string representing an int
             try:
                 cost_from_json = int(cost_from_json)
             except (ValueError, TypeError):
@@ -238,28 +215,27 @@ def load_cards(file_path: str = DEFAULT_CARDS_FILE) -> List[Card]:
             
         card_id_val = card_data_dict.get("card_id", card_name.lower().replace(" ", "_").replace("'", ""))
             
-        effects_json_list = card_data_dict.get("effects", [])
+        effects_json_list = card_data_dict.get("effects", []) # Changed from "effect_logic_list"
         parsed_effects_list = []
         if isinstance(effects_json_list, list):
             for effect_data_dict in effects_json_list:
                 if not isinstance(effect_data_dict, dict):
                      raise ValueError(f"Effect entry for card '{card_name}' must be a dictionary.")
                 try:
-                    # Pass card_name and card_id_val for context
                     parsed_effects_list.append(_parse_effect(effect_data_dict, card_name, card_id_val))
-                except ValueError as e: # Catch errors from _parse_effect
+                except ValueError as e: 
                     raise ValueError(f"Error parsing effect for card '{card_name}': {e}")
         elif effects_json_list is not None : 
             raise ValueError(f"Effects for '{card_name}' must be a list if provided.")
         
-        subtypes_str_list = card_data_dict.get("subtypes", [])
+        subtypes_str_list = card_data_dict.get("subtypes", card_data_dict.get("sub_types", [])) # Added fallback for "sub_types"
         parsed_subtypes_list = []
         if isinstance(subtypes_str_list, list):
             for st_str in subtypes_str_list:
                 try:
-                    if isinstance(st_str, str) and st_str: # Ensure it's a non-empty string
+                    if isinstance(st_str, str) and st_str: 
                         parsed_subtypes_list.append(CardSubType[st_str.upper()])
-                    elif st_str: # If not string but not None/empty, warn
+                    elif st_str: 
                         print(f"Warning: Non-string or empty subtype value '{st_str}' for card '{card_name}'. Will be ignored.")
                 except KeyError:
                     print(f"Warning: Unknown subtype '{st_str}' for card '{card_name}'. Will be ignored.")
@@ -269,13 +245,12 @@ def load_cards(file_path: str = DEFAULT_CARDS_FILE) -> List[Card]:
              except KeyError:
                 print(f"Warning: Unknown subtype '{subtypes_str_list}' for card '{card_name}'. Will be ignored.")
         
-        # Card class expects 'type' and 'cost_mana' as keyword arguments
         card_constructor_args = {
             "card_id": card_id_val,
             "name": card_name,
             "type": card_type_enum_val,      
             "cost_mana": cost_from_json,     
-            "text": card_data_dict.get("text", ""),
+            "text": card_data_dict.get("text", card_data_dict.get("text_rules", "")), # Fallback for text_rules
             "flavor_text": card_data_dict.get("flavor_text", ""),
             "subtypes": parsed_subtypes_list,
             "effects": parsed_effects_list,
@@ -284,7 +259,6 @@ def load_cards(file_path: str = DEFAULT_CARDS_FILE) -> List[Card]:
             "art_elements": card_data_dict.get("art_elements")
         }
         
-        # Instantiate the correct Card subclass
         if card_type_enum_val == CardType.TOY:
             cards_list.append(Toy(**card_constructor_args))
         elif card_type_enum_val == CardType.RITUAL:
@@ -292,8 +266,6 @@ def load_cards(file_path: str = DEFAULT_CARDS_FILE) -> List[Card]:
         elif card_type_enum_val == CardType.SPELL:
             cards_list.append(Spell(**card_constructor_args))
         else: 
-            # This case should ideally not be reached if card_type_enum_val is validated against CardType enum
-            # However, if CardType enum is extended and this logic isn't, it might fall here.
             print(f"Warning: Card '{card_name}' has unhandled CardType '{card_type_enum_val.name}'. Creating generic Card object.")
             cards_list.append(Card(**card_constructor_args)) 
             
@@ -305,9 +277,6 @@ def _parse_objective_logic_component_from_data(data: Optional[Dict[str, Any]]) -
     component_data = data.copy() 
     if "action_type" in component_data and "component_type" not in component_data:
         component_data["component_type"] = component_data.pop("action_type")
-    # Further parsing of component_data["params"] for enums might be needed here
-    # if ObjectiveLogicComponent is used for complex game rule definitions.
-    # For now, ObjectiveLogicComponent.from_dict handles basic structure.
     return ObjectiveLogicComponent.from_dict(component_data)
 
 def load_objectives(file_path: str = DEFAULT_OBJECTIVES_FILE) -> List[ObjectiveCard]:
@@ -328,11 +297,11 @@ def load_objectives(file_path: str = DEFAULT_OBJECTIVES_FILE) -> List[ObjectiveC
         if not isinstance(obj_data_dict, dict):
             raise ValueError("Each objective entry in JSON must be a dictionary.")
 
-        # Use "title" if present, fallback to "name", then to "Unnamed Objective"
         title_val = obj_data_dict.get("title", obj_data_dict.get("name", "Unnamed Objective")) 
         obj_id_val = obj_data_dict.get("objective_id", title_val.lower().replace(" ", "_").replace("'", ""))
 
-        nc_effects_raw_list = obj_data_dict.get("nightmare_creep_effects", [])
+        # Corrected key to "nightmare_creep_effect" (singular)
+        nc_effects_raw_list = obj_data_dict.get("nightmare_creep_effect", []) 
         parsed_nc_components: List[ObjectiveLogicComponent] = []
         if isinstance(nc_effects_raw_list, list):
             for i, nc_item_dict in enumerate(nc_effects_raw_list):
@@ -341,9 +310,8 @@ def load_objectives(file_path: str = DEFAULT_OBJECTIVES_FILE) -> List[ObjectiveC
                     if parsed_comp:
                         parsed_nc_components.append(parsed_comp)
                     else:
-                        # Log warning if a component could not be parsed
                         print(f"Warning: Could not parse nightmare_creep_effect item {i} for objective '{title_val}'. Data: {nc_item_dict}")
-                else: # If item in list is not a dictionary
+                else: 
                     raise ValueError(f"Nightmare Creep effect item {i} for objective '{title_val}' is not a dictionary.")
         elif nc_effects_raw_list is not None: 
              raise ValueError(f"Nightmare Creep effects for objective '{title_val}' must be a list if provided.")
@@ -353,9 +321,6 @@ def load_objectives(file_path: str = DEFAULT_OBJECTIVES_FILE) -> List[ObjectiveC
         fm_setup_obj = _parse_objective_logic_component_from_data(obj_data_dict.get("first_memory_setup"))
         setup_instr_obj = _parse_objective_logic_component_from_data(obj_data_dict.get("setup_instructions"))
         
-        # first_memory_ongoing_effects is expected to be List[Dict[str, Any]] by ObjectiveCard.
-        # If these dicts represent Effect definitions, they would need parsing via _parse_effect.
-        # For now, pass as is, assuming consuming logic handles raw dicts or it's purely descriptive.
         fm_ongoing_effects_list = obj_data_dict.get("first_memory_ongoing_effects", [])
 
 
@@ -394,25 +359,44 @@ class GameData:
 
 def load_all_game_data(cards_file_path: str = DEFAULT_CARDS_FILE, 
                          objectives_file_path: str = DEFAULT_OBJECTIVES_FILE) -> GameData:
-    cards = load_cards(cards_file_path)
-    objectives = load_objectives(objectives_file_path)
+    # Also, ensure "effects" (plural) from cards.json is read correctly.
+    # Card definition expects "effects", but JSON might have "effect_logic_list".
+    # The load_cards function has been updated to try "effects" first, then "effect_logic_list".
+    cards_json_content = []
+    with open(cards_file_path, 'r', encoding='utf-8') as f:
+        cards_json_content = json.load(f)
+
+    for card_data in cards_json_content:
+        if "effect_logic_list" in card_data and "effects" not in card_data:
+            card_data["effects"] = card_data.pop("effect_logic_list")
+        if "sub_types" in card_data and "subtypes" not in card_data: # Handle sub_types vs subtypes
+            card_data["subtypes"] = card_data.pop("sub_types")
+        if "text_rules" in card_data and "text" not in card_data: # Handle text_rules vs text
+            card_data["text"] = card_data.pop("text_rules")
+
+
+    # Temporarily write corrected card data to be loaded by load_cards
+    # This is a workaround for direct modification if load_cards cannot be changed now
+    temp_cards_file_path = cards_file_path + ".tmp"
+    with open(temp_cards_file_path, 'w', encoding='utf-8') as f:
+        json.dump(cards_json_content, f)
+    
+    try:
+        cards = load_cards(temp_cards_file_path)
+        objectives = load_objectives(objectives_file_path)
+    finally:
+        if os.path.exists(temp_cards_file_path):
+            os.remove(temp_cards_file_path)
+            
     return GameData(cards, objectives)
 
 
 if __name__ == '__main__':
     try:
         print("Attempting to load game data from default JSON file locations...")
-        # For direct testing, ensure paths are correct relative to this script if not using project root
-        # Example: explicit paths if data folder is sibling to src
-        # project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        # cards_json = os.path.join(project_root, "data", "cards.json")
-        # objectives_json = os.path.join(project_root, "data", "objectives.json")
-        # game_data = load_all_game_data(cards_json, objectives_json)
-        
-        game_data = load_all_game_data() # Uses DEFAULT paths based on this file's location
+        game_data = load_all_game_data() 
         print(f"Successfully loaded {len(game_data.cards)} cards and {len(game_data.objectives)} objectives.")
         
-        # Example: Print details of the first loaded card if any
         if game_data.cards:
             print("\nSample Card:")
             sample_card = game_data.cards[0]
@@ -421,10 +405,9 @@ if __name__ == '__main__':
             print(f"  Text: {sample_card.text}")
             if sample_card.effects:
                 print(f"  Effects ({len(sample_card.effects)}):")
-                for i, effect_obj in enumerate(sample_card.effects): # Changed variable name to effect_obj
+                for i, effect_obj in enumerate(sample_card.effects): 
                     print(f"    Effect {i+1}: Trigger: {effect_obj.trigger.name}, ID: {effect_obj.effect_id}")
 
-        # Example: Print details of the first loaded objective if any
         if game_data.objectives:
             print("\nSample Objective:")
             sample_obj = game_data.objectives[0]
@@ -436,10 +419,9 @@ if __name__ == '__main__':
 
     except FileNotFoundError as e:
         print(f"Error: Data file not found. {e}")
-        print("Please ensure 'data/cards.json' and 'data/objectives.json' exist relative to the project structure.")
     except ValueError as e:
         print(f"Error: Problem parsing data. {e}")
-    except Exception as e: # Catch any other unexpected errors during loading
+    except Exception as e: 
         import traceback
         print(f"An unexpected error occurred during data loading: {e}")
         traceback.print_exc()

@@ -3,8 +3,37 @@ from enum import Enum, auto
 
 class CardType(Enum):
     TOY = auto()
-    RITUAL = auto()
     SPELL = auto()
+    RITUAL = auto()
+    NIGHTMARE_FUEL = auto()
+
+class CardSubType(Enum):
+    HAUNT = auto()
+    BROWSE_SEARCH = auto()
+    SACRIFICE = auto()
+    REANIMATE = auto()
+    LOOP = auto()
+    MEMORY_TOKEN_INTERACT = auto()
+    DICE_ROLL = auto()
+    NIGHTMARE_INTERACT = auto()
+    TEDDY_BEAR = auto()
+    DOLL = auto()
+    ROBOT = auto()
+    CREATURE = auto()
+    VEHICLE = auto()
+    BUILDING = auto()
+    ARCANE = auto()
+    ILLUSION = auto()
+    PROTECTION = auto()
+    DREAMCRAFT = auto()
+    INVOCATION = auto()
+    WARDING = auto()
+    SUMMONING = auto()
+    LEGENDARY = auto()
+    CURSED = auto()
+    STARTER = auto()
+    MEMORY = auto()
+    TOKEN = auto()
 
 class Zone(Enum):
     DECK = auto()
@@ -12,182 +41,213 @@ class Zone(Enum):
     IN_PLAY = auto()
     DISCARD = auto()
     EXILE = auto()
-    SET_ASIDE = auto() # For cards temporarily out of play (e.g., Dreamcatcher's exiled cards)
-    BEING_CAST = auto() # For spells/rituals during resolution before going to discard/play
+    REVEALED = auto()
+    LIMBO = auto()
+    OBJECTIVE_DECK = auto()
+    ATTACHED = auto()
+    OUT_OF_GAME = auto()
+    SET_ASIDE = auto()
+    DECK_TOP = auto()
+    BEING_CAST = auto()
 
 class TurnPhase(Enum):
+    GAME_SETUP = auto()
     BEGIN_TURN = auto()
+    DRAW_PHASE = auto()
     MAIN_PHASE = auto()
-    END_TURN = auto()
-    GAME_SETUP = auto() # For effects during setup
+    COMBAT_PHASE = auto()
+    END_TURN_PHASE = auto() # Used by TurnManager
+    CLEANUP_PHASE = auto()
+    # END_TURN was an error source, ensure END_TURN_PHASE is used.
 
 class ResourceType(Enum):
     MANA = auto()
-    SPIRIT = auto() # Spirit Tokens ✦
-    MEMORY = auto() # Memory Tokens ❤
-
-class CardSubType(Enum):
-    LOOP = auto() # ↻
-    HAUNT = auto() # ✦ (often associated with Spirit creation on leaving play)
-    REANIMATE = auto() # ⚰️ (interactions with discard pile, bringing things back)
-    SACRIFICE = auto() # ✂️ (involving sacrificing cards)
-    DICE_ROLL = auto() # 🎲
-    NIGHTMARE_INTERACT = auto() # 👁️ (interacting with Nightmare Creep)
-    BROWSE_SEARCH = auto() # 🔍 (looking at or searching deck/zones)
-    MEMORY_TOKEN_INTERACT = auto() # ❤ (specific interactions with Memory Tokens)
+    SPIRIT_TOKENS = auto() # Use this instead of SPIRIT
+    MEMORY_TOKENS = auto()
+    CARDS_IN_HAND = auto()
+    CARDS_IN_DECK = auto()
+    CARDS_IN_DISCARD = auto()
+    TOYS_IN_PLAY = auto()
+    NIGHTMARE_LEVEL = auto()
+    PLAYER_HEALTH = auto()
 
 class EffectTriggerType(Enum):
-    # Card State/Zone Changes
-    ON_PLAY = auto()                            # When this card is played
-    ON_LEAVE_PLAY = auto()                      # When this card leaves the play area
-    ON_DISCARD_THIS_CARD = auto()               # When this card is discarded from hand
-    ON_EXILE_THIS_CARD = auto()                 # When this card is exiled
-    ON_SACRIFICE_THIS_CARD = auto()             # When this card is sacrificed
-    ON_ENTER_PLAY_FROM_DISCARD = auto()         # When this card specifically enters play from discard
-    BEFORE_THIS_CARD_MOVES_ZONES = auto()       # Replacement effect trigger for this card changing zones
-    BEFORE_THIS_CARD_LEAVES_PLAY = auto()       # Replacement effect trigger before this card leaves play
-
-    # Player Actions / Game Events
-    ACTIVATED_ABILITY = auto()                  # Manually activated by player (cost may apply)
-    TAP_ABILITY = auto()                        # Activated ability that inherently includes tapping this card
-    UNTAP_THIS_CARD = auto()                    # When this card untaps
-    WHEN_CARD_DRAWN = auto()                    # When any card is drawn by the player
-    WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER = auto() # When NC objectives's general turn check passes
-    ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN = auto() # After a specific NC effect for the turn is resolved (used by NC effect logic itself)
-    WHEN_OTHER_CARD_ENTERS_PLAY = auto()        # When another card enters play
-    WHEN_OTHER_CARD_LEAVES_PLAY = auto()        # When another card leaves play
-    WHEN_SPIRIT_CREATED = auto()                # When a Spirit token is created
-    WHEN_MEMORY_TOKEN_CREATED = auto()          # When a Memory token is created
-    WHEN_CARD_PLAYED_FROM_DISCARD_PILE = auto() # When a card is played from discard
-    WHEN_CARD_PLAYED_FROM_EXILE = auto()        # When a card is played from exile
-    WHEN_YOU_SACRIFICE_TOY = auto()             # When player sacrifices a Toy
-    WHEN_COUNTER_REACHES_THRESHOLD = auto()     # E.g., Feeding Chair auto-sacrifices
-    WHEN_PROTECTED_TOY_WOULD_LEAVE_PLAY = auto() # Specific event for Beloved Friend
-    WHEN_CARD_EXILED_FROM_HAND = auto()         # When a card is exiled from hand
-
-    # Turn Structure
+    ON_PLAY = auto()
+    ON_ENTER_PLAY = auto()
+    ON_LEAVE_PLAY = auto()
+    ON_DESTROYED = auto()
+    ON_DISCARDED = auto()
+    ON_DRAWN = auto()
+    ACTIVATED_ABILITY = auto()
+    AT_BEGINNING_OF_TURN = auto()
+    AT_END_OF_TURN = auto()
+    BEFORE_THIS_CARD_LEAVES_PLAY = auto()
+    BEING_CAST = auto()
+    ON_ENTER_PLAY_FROM_DISCARD = auto()
+    WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER = auto()
+    BEFORE_THIS_CARD_MOVES_ZONES = auto()
+    WHEN_COUNTER_REACHES_THRESHOLD = auto()
+    WHEN_OTHER_CARD_LEAVES_PLAY = auto()
+    WHEN_CARD_ENTERS_PLAY_FROM_DISCARD = auto()
+    ON_PLAY_AND_BEGIN_PLAYER_TURN = auto()
+    PASSIVE_ABILITY_WHILE_TAPPED = auto()
+    WHEN_CARD_PLAYED_FROM_DISCARD_PILE = auto()
     BEGIN_PLAYER_TURN = auto()
-    BEGIN_PLAYER_TURN_EVERY_OTHER = auto()      # Special for Memory Loop of Scratched Records
-    END_PLAYER_TURN = auto()
-    ON_PLAY_AND_BEGIN_PLAYER_TURN = auto()      # Compound, likely handled by two effects in JSON
-
-    # Continuous / State-Based (Engine needs to manage these)
-    CONTINUOUS_WHILE_TAPPED = auto()            # For passive effects while tapped (e.g. Shadow Puppet)
-    CONTINUOUS_WHILE_IN_PLAY = auto()           # General continuous effect
-
-class EffectConditionType(Enum):
-    # Card Properties / State
-    IS_FIRST_MEMORY = auto()                    # Checks if the source card of the effect is the First Memory
-    IS_FIRST_MEMORY_IN_PLAY = auto()
-    IS_FIRST_MEMORY_IN_DISCARD = auto()
-    REANIMATED_TOY_IS_FIRST_MEMORY = auto()     # Specific check for reanimation target
-    THIS_CARD_IS_TAPPED = auto()                # Checks if the source card instance is tapped
-    HAS_COUNTER_TYPE_VALUE_GE = auto()          # Card has >= X of a counter type (e.g. Feeding Chair)
-    CARD_HAS_BEEN_IN_PLAY_FOR_X_TURNS_GE = auto() # Card has been in play for X or more turns
-
-    # Player / Game State
-    PLAYER_HAS_RESOURCE = auto()                # Player has X amount of Mana, Spirits, Memory
-    DECK_SIZE_LE = auto()                       # Player's deck has X or fewer cards
-    NIGHTMARE_CREEP_LEVEL_IS = auto()           # Current NC level/turn implies certain state
-    NIGHTMARE_CREEP_IS_ACTIVE = auto()          # Has NC started affecting the game?
-    CURRENT_TURN_IS = auto()                    # Current game turn is X / >=X / <=X
-
-    # Event-Based Conditions (contextual, checked when an event triggers an effect)
-    EVENT_CARD_IS_TYPE = auto()                 # Card involved in trigger is of specific CardType (e.g. another Toy left play)
-    EVENT_CARD_IS_FM = auto()                   # Card involved in trigger is the First Memory
-    EVENT_SOURCE_IS_SELF = auto()               # Helps differentiate self-triggers vs "other card" triggers
-    IS_MOVING_FROM_ZONE = auto()                # Card is moving from a specific zone
-    IS_MOVING_TO_ZONE = auto()                  # Card is moving to a specific zone
-    CHOICE_WAS_MADE_IN_EVENT = auto()           # Check if a specific player choice was made as part of the trigger or cost
+    BEGIN_PLAYER_TURN_EVERY_OTHER = auto()
+    WHEN_YOU_SACRIFICE_TOY = auto()
+    END_PLAYER_TURN = auto() # Note: TurnManager uses END_TURN_PHASE
+    WHEN_PROTECTED_TOY_WOULD_LEAVE_PLAY = auto()
+    TAP_ABILITY = auto()
+    WHEN_CARD_TYPE_PLAYED = auto()
+    WHEN_CARD_SUBTYPE_PLAYED = auto()
+    WHEN_PLAYER_GAINS_RESOURCE = auto()
+    WHEN_PLAYER_LOSES_RESOURCE = auto()
+    WHEN_DAMAGE_DEALT = auto()
+    WHEN_NIGHTMARE_CREEP_TRIGGERS = auto() # Generic NC trigger
+    # ON_NIGHTMARE_CREEP_RESOLUTION_FOR_TURN was an error source, consider this or WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER
+    AT_BEGINNING_OF_PHASE = auto()
+    AT_END_OF_PHASE = auto()
+    WHEN_FIRST_MEMORY_ENTERS_PLAY = auto()
+    WHEN_OBJECTIVE_CONDITION_MET = auto()
+    PAY_COST_TO_CANCEL_EVENT = auto()
 
 class EffectActionType(Enum):
-    # Basic Resource & Card Manipulation
-    DRAW_CARDS = auto()
     ADD_MANA = auto()
+    REMOVE_MANA = auto()
     CREATE_SPIRIT_TOKENS = auto()
+    REMOVE_SPIRIT_TOKENS = auto()
     CREATE_MEMORY_TOKENS = auto()
-    PLACE_COUNTER_ON_CARD = auto()
-    REMOVE_COUNTER_FROM_CARD = auto()
-    MILL_DECK = auto()
-
-    # Card Movement & Zone Changes
-    RETURN_CARD_FROM_ZONE_TO_ZONE = auto()      # Generic: needs params for card, from_zone, to_zone
+    REMOVE_MEMORY_TOKENS = auto()
+    DRAW_CARDS = auto()
+    DISCARD_CARDS = auto()
+    MILL_CARDS = auto() # EffectEngine was using MILL_DECK
+    TUTOR_CARD = auto()
+    RETURN_CARD_FROM_ZONE_TO_ZONE = auto()
+    REANIMATE_CARD = auto()
+    EXILE_CARD = auto()
+    PLAY_CARD_FROM_ZONE = auto()
+    SHUFFLE_ZONE_INTO_DECK = auto()
+    LOOK_AT_ZONE = auto()
+    ADD_COUNTER = auto()
+    REMOVE_COUNTER = auto()
+    TAP_CARD = auto()
+    UNTAP_CARD = auto()
+    SET_CARD_ATTRIBUTE = auto()
+    GRANT_TEMPORARY_EFFECT = auto()
+    DEAL_DAMAGE = auto()
+    HEAL_DAMAGE = auto()
+    PLAYER_LOSES_TURN_PHASE = auto()
+    PLAYER_GAINS_EXTRA_TURN_PHASE = auto()
+    SET_GAME_FLAG = auto()
+    CHECK_GAME_FLAG = auto()
+    CONDITIONAL_EFFECT = auto()
+    PLAYER_CHOICE = auto()
+    RESOLVE_SUB_EFFECT = auto()
+    CANCEL_IMPENDING_ACTION = auto()
+    CANCEL_IMPENDING_LEAVE_PLAY = auto()
+    NO_ACTION = auto()
+    ADVANCE_OBJECTIVE_PROGRESS = auto()
+    CHOOSE_AND_REANIMATE_TOY_WITH_FM_BONUS = auto()
+    BROWSE_DECK = auto()
     RETURN_THIS_CARD_TO_HAND = auto()
-    EXILE_CARD_FROM_ZONE = auto()               # Generic: needs params for card/filter, from_zone
-    SACRIFICE_CARD_IN_PLAY = auto()             # Generic: needs params for card/filter to sacrifice
-    DISCARD_CARDS_RANDOM_FROM_HAND = auto()
-    DISCARD_CARDS_CHOSEN_FROM_HAND = auto()     # Links to PLAYER_CHOICE
-    REANIMATE_CARD = auto()                     # Specific: Play card from discard, params for modifiers
-    PLAY_CARD_NO_COST = auto()                  # Play a specific card (usually from hand/search) for free
-    PLAY_RANDOM_CARD_FROM_SET_ASIDE = auto()    # For Dreamcatcher
-    CANCEL_IMPENDING_MOVE = auto()              # Stop a card from moving zones (replacement effect part)
-    CANCEL_IMPENDING_LEAVE_PLAY = auto()        # Stop a card from leaving play
-
-    # Searches & Deck Interaction
-    BROWSE_DECK = auto()                        # Look at top X cards, reorder/put bottom (params define specifics)
-    SEARCH_DECK = auto()                        # Search deck for card(s) matching filter (params define what happens - to hand, play, top)
-
-    # Game State & Turn Structure
+    CANCEL_IMPENDING_MOVE = auto()
+    CREATE_SPIRITS_FROM_STORM_COUNT = auto()
+    EMPOWER_RECENTLY_CREATED_SPIRITS = auto()
+    REANIMATE_TOY_FROM_DISCARD = auto()
+    PLACE_COUNTER_ON_CARD = auto()
+    SACRIFICE_CARD_IN_PLAY = auto()
+    SEARCH_DECK_FOR_TOY_INTERACTION = auto()
+    CHOOSE_OTHER_TOY_TO_PROTECT = auto()
+    SACRIFICE_THIS_CARD_TO_SAVE_OTHER = auto()
+    ROLL_DICE_SELECT_EFFECT = auto()
     TAKE_EXTRA_TURN = auto()
-    ADVANCE_NIGHTMARE_CREEP_TRACK = auto()      # Manually progress NC (e.g., Memory Loop)
-    SKIP_NIGHTMARE_CREEP_EFFECTS = auto()       # Skip next X NC effects
-    DELAY_NIGHTMARE_CREEP_TURNS = auto()        # NC doesn't apply for X turns
-    CANCEL_NIGHTMARE_CREEP_EFFECT = auto()      # Cancel a currently resolving/imminent NC effect
-    MODIFY_NEXT_NIGHTMARE_CREEP_EFFECT = auto() # Change what the next NC effect does
-    INCREASE_CARD_COSTS_IN_HAND = auto()        # For NC effect
+    GRANT_TAP_ABILITY_TO_TOYS = auto()
+    SACRIFICE_RANDOM_TOY_AND_CREATE_MEMORY_TOKENS = auto()
+    SKIP_NIGHTMARE_CREEP_EFFECT = auto()
+    REPLACEMENT_EFFECT_SPIRIT_TO_MEMORY = auto()
+    CANCEL_NIGHTMARE_CREEP_EFFECT = auto()
+    SEARCH_DECK_FOR_CARD_TYPE_TO_HAND = auto()
+    ADD_MANA_WITH_BONUSES_AND_PENALTIES = auto()
+    TRIGGER_NIGHTMARE_CREEP_ADDITIONAL = auto()
+    RETURN_DIFFERENT_TOY_FROM_DISCARD_TO_HAND = auto()
+    ADVANCE_NIGHTMARE_CREEP_TRACK = auto()
+    EXILE_CARD_FROM_ZONE = auto()
+    VIEW_EXILED_CARDS_PLAYER_CHOICE = auto()
+    PLAY_RANDOM_EXILED_CARD_NO_COST = auto()
+    PLAYER_CHOICE_SACRIFICE_TOY = auto()
+    RETURN_SACRIFICED_CARD_TO_TOP_DECK = auto()
+    PLAYER_CHOICE_RETURN_CARD_FROM_DISCARD_TO_HAND = auto()
+    LOOK_AT_TOP_X_PLAY_TOY_NO_COST = auto()
+    APPLY_TEMPORARY_EFFECT_PLAYER = auto()
+    CREATE_SPIRIT_UNLESS_FM_THEN_MEMORY_TOKEN = auto()
+    PLAYER_CHOICE_MODAL = auto()
+    SACRIFICE_TOY_FOR_DRAW_BY_TURNS = auto()
+    EXILE_OLD_TOY_FOR_MEMORY_BY_TURNS = auto()
+    CONVERT_MEMORY_TOKENS_TO_SPIRITS_AND_DRAW = auto()
+    PLAYER_CHOICE_TRANSFORM_TOY = auto()
+    PROTECT_FROM_SACRIFICE_SPIRITS_NEXT_NC = auto()
+    EXILE_CARD_FROM_HAND_PLAYER_CHOICE = auto()
+    MODIFY_NEXT_NIGHTMARE_CREEP_EFFECT = auto()
+    DISCARD_CARD_OR_SACRIFICE_SPIRIT = auto() # Moved from PlayerChoiceType here, as it's an action the AI decides on
 
-    # Complex / Meta Actions
-    PLAYER_CHOICE = auto()                      # Triggers a player decision (params define choice type and outcomes)
-    CONDITIONAL_EFFECT = auto()                 # Executes sub-actions based on a condition (meta-action or engine logic)
-    APPLY_TEMPORARY_EFFECT_PLAYER = auto()      # Grants player a temporary triggered/static ability (e.g. Nightlight Glimmer)
-    ADD_REPLACEMENT_EFFECT = auto()             # Adds a temporary replacement effect to the game
-    GRANT_TEMPORARY_ABILITY_TO_CARDS = auto()   # E.g. Midnight Animator makes toys tappable for spirits
-    EMPOWER_TOKENS = auto()                     # E.g. Fluffstorm gives first spirit an ability
-    CONVERT_RESOURCES = auto()                  # E.g. Laughter Preserved in Amber (Memory to Spirits + Draw)
-    TRANSFORM_CARD = auto()                     # E.g. Last Goodbye (Toy to Spirits + other effects)
-    ROLL_DICE_AND_APPLY_MAPPED_EFFECT = auto()  # For complex dice roll cards, maps results to actions
-
-    # Specific Named Actions from Cards (Consider if they can be generalized over time)
-    SACRIFICE_RANDOM_CARD = auto()              # E.g. Midnight Animator outcome (could be SACRIFICE_CARD_IN_PLAY with random target)
-    SACRIFICE_RESOURCE = auto()                 # E.g. Nightmare Creep makes player sacrifice a Spirit token
+class EffectConditionType(Enum):
+    PLAYER_HAS_MANA_GE = auto()
+    PLAYER_HAS_MANA_LE = auto()
+    PLAYER_HAS_SPIRIT_TOKENS_GE = auto()
+    PLAYER_HAS_MEMORY_TOKENS_GE = auto()
+    CARD_IS_IN_ZONE = auto()
+    ZONE_HAS_CARD_TYPE_COUNT_GE = auto()
+    ZONE_HAS_CARD_SUBTYPE_COUNT_GE = auto()
+    ZONE_IS_EMPTY = auto()
+    CARD_IS_TAPPED = auto() # EffectEngine needs to use this instead of THIS_CARD_IS_TAPPED
+    CARD_IS_UNTAPPED = auto()
+    THIS_CARD_IS_FIRST_MEMORY = auto()
+    IS_FIRST_MEMORY_IN_PLAY = auto()
+    HAS_COUNTER_TYPE_VALUE_GE = auto()
+    IS_CURRENT_PHASE = auto()
+    IS_CURRENT_TURN_GE = auto()
+    IS_DAY_OR_NIGHT = auto()
+    GAME_FLAG_IS_SET = auto()
+    IS_ACTIVE_PLAYER = auto()
+    IS_NOT_ACTIVE_PLAYER = auto()
+    CARD_HAS_SUBTYPE = auto()
+    CARD_HAS_KEYWORD = auto()
+    IS_FIRST_MEMORY = auto()
+    IS_MOVING_FROM_ZONE = auto()
+    IS_MOVING_TO_ZONE = auto()
+    EVENT_CARD_IS_TYPE = auto()
+    IS_FIRST_MEMORY_IN_DISCARD = auto()
+    DECK_SIZE_LE = auto()
+    EVENT_CARD_IS_FM = auto()
+    PLAYER_HAS_RESOURCE = auto()
 
 class EffectActivationCostType(Enum):
-    PAY_MANA = auto()
+    MANA = auto()
+    TAP_THIS_CARD = auto()
+    SACRIFICE_THIS_CARD = auto()
+    SACRIFICE_OTHER_CARD = auto()
+    DISCARD_CARD = auto()
     PAY_SPIRIT_TOKENS = auto()
     PAY_MEMORY_TOKENS = auto()
-    TAP_THIS_CARD = auto()                      # Cost is to tap the card with the ability
-    TAP_OTHER_CARD = auto()                     # Cost is to tap another specified card
-    SACRIFICE_THIS_CARD = auto()                # Cost is to sacrifice the card with the ability
-    SACRIFICE_FROM_PLAY = auto()                # Cost is to sacrifice other card(s) from play (params specify filter)
-    DISCARD_FROM_HAND = auto()                  # Cost is to discard card(s) from hand (params specify filter/count)
-    EXILE_FROM_HAND = auto()
-    EXILE_FROM_DISCARD = auto()
-    CHOOSE_AND_PAY_COST = auto()                # If the cost itself is a choice (e.g. "Pay X or Discard Y")
+    EXILE_CARD_FROM_DISCARD = auto()
+    SACRIFICE_FROM_PLAY = auto()
+    TAP_CARD_IN_PLAY = auto()
+    DISCARD_FROM_HAND = auto()
+    SACRIFICE_FROM_PLAY_CHOICE = auto()
+    PAY_MANA = auto()
 
 class PlayerChoiceType(Enum):
-    # General Choices
     CHOOSE_YES_NO = auto()
-    CHOOSE_NUMBER_FROM_RANGE = auto()
-    CHOOSE_MODAL_EFFECT = auto()                # Player chooses between 2+ effect options on a card
-
-    # Card Choices
+    CHOOSE_FROM_LIST_OF_CARDS = auto()
+    CHOOSE_FROM_LIST_OF_EFFECTS = auto()
+    CHOOSE_PLAYER = auto()
+    CHOOSE_ZONE = auto()
+    CHOOSE_NUMBER_UP_TO_X = auto()
+    CHOOSE_TARGET_CARD_IN_PLAY = auto()
+    CHOOSE_ORDER_OF_CARDS = auto()
     CHOOSE_CARD_FROM_HAND = auto()
-    CHOOSE_CARD_FROM_DISCARD = auto()
-    CHOOSE_CARD_IN_PLAY = auto()                # General choice of a card in play
-    CHOOSE_TARGET_CARD_IN_PLAY = auto()         # For effects that need a target (e.g., choose a Toy, card in discard)
-    CHOOSE_TOY_TO_SACRIFICE = auto()            # Specific for sacrificing a toy
-    CHOOSE_TOY_TO_SACRIFICE_OPTIONAL = auto()   # Option to not sacrifice if "may"
-
-    # Game Action Choices
-    DISCARD_CARD_OR_SACRIFICE_SPIRIT = auto()   # Common NC choice
-    
-    # Organization / Ordering
-    ORDER_CARDS = auto()                        # E.g., for "Browse deck and reorder"
-
-    # Resource Allocation
-    DISTRIBUTE_RESOURCES = auto()               # E.g., distribute N counters among M targets
-
-    # Meta / Control Flow
-    CHOOSE_MODE = auto()                        # For modal spells/effects: "Choose one - ...; or Choose one - ..."
-    CHOOSE_YES_NO_PAY_COST = auto()             # Yes/No choice that also involves paying a cost if "Yes"
-    CHOOSE_CARD_FROM_ZONE_FILTERED = auto()     # Generic, params: zone, card_filter, purpose_text
+    CHOOSE_TOY_TO_SACRIFICE = auto()
+    CHOOSE_TOY_TO_SACRIFICE_OPTIONAL = auto()
+    YES_NO_PAY_COST = auto()
+    CHOOSE_MODAL_EFFECT = auto() # For test_random_ai.py
+    DISCARD_CARD_OR_SACRIFICE_SPIRIT = auto() # For test_random_ai.py

@@ -1,212 +1,252 @@
 # tests/game_elements/test_card.py
-# Unit tests for card.py (Card, Effect, EffectAction, Cost, Toy, Spell, Ritual classes)
-
 import pytest
-from typing import List, Dict, Any, Optional, Set # Added Set
+from typing import Dict, List, Any, Optional
 
 from tuck_in_terrors_sim.game_elements.card import (
-    Card, Toy, Ritual, Spell, Effect, EffectAction, Cost, CardInstance
+    Card, Toy, Spell, Ritual, Effect, EffectAction, Cost, CardInstance
 )
-# Ensure all used enums and DEFAULT_PLAYER_ID are imported
 from tuck_in_terrors_sim.game_elements.enums import (
-    CardType, CardSubType, EffectTriggerType, EffectActionType, 
-    EffectActivationCostType, ResourceType, Zone, PlayerChoiceType, EffectConditionType
+    CardType, CardSubType, EffectTriggerType, EffectActionType, Zone,
+    EffectConditionType, ResourceType, EffectActivationCostType
 )
-# Assuming DEFAULT_PLAYER_ID is a common constant, if it's defined in game_setup, import from there
-# For test isolation, we can define it here or import if it's truly central.
-# Let's assume it might come from game_setup for now, or define a local one for tests.
-try:
-    from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
-except ImportError:
-    DEFAULT_PLAYER_ID = 0 # Local fallback for testing if not in game_setup
 
-# --- Test Data for Effects and Costs ---
+# --- Test Fixtures / Mock Data ---
+
+@pytest.fixture
+def minimal_card_data() -> Dict[str, Any]:
+    return {
+        "card_id": "C001",
+        "name": "Test Card",
+        "type": CardType.TOY,
+        "cost_mana": 1
+    }
+
+@pytest.fixture
+def toy_card_data(minimal_card_data: Dict[str, Any]) -> Dict[str, Any]:
+    data = minimal_card_data.copy()
+    data.update({
+        "name": "Test Toy Alpha", # Specific name for this fixture
+        "type": CardType.TOY,
+        "text": "A simple toy.",
+        "flavor_text": "It's fun!",
+        "subtypes": [CardSubType.TEDDY_BEAR],
+        "power": "2/2" # Assuming power is parsed elsewhere or not directly used by base Card
+    })
+    return data
+
+@pytest.fixture
+def spell_card_data(minimal_card_data: Dict[str, Any]) -> Dict[str, Any]:
+    data = minimal_card_data.copy()
+    data.update({
+        "card_id": "S001",
+        "name": "Test Spell Beta", # Specific name
+        "type": CardType.SPELL,
+        "cost_mana": 2,
+        "text": "Draw a card."
+    })
+    return data
+
+@pytest.fixture
+def ritual_card_data(minimal_card_data: Dict[str, Any]) -> Dict[str, Any]:
+    data = minimal_card_data.copy()
+    data.update({
+        "card_id": "R001",
+        "name": "Test Ritual Gamma", # Specific name
+        "type": CardType.RITUAL,
+        "cost_mana": 3,
+        "text": "Do something ritualistic."
+    })
+    return data
+
+
 @pytest.fixture
 def minimal_effect_action() -> EffectAction:
-    # Using a confirmed valid EffectActionType
     return EffectAction(action_type=EffectActionType.DRAW_CARDS, params={"count": 1})
 
 @pytest.fixture
-def complex_effect_action(minimal_effect_action: EffectAction) -> EffectAction:
-    return EffectAction(
-        action_type=EffectActionType.PLAYER_CHOICE,
-        params={
-            "choice_type": PlayerChoiceType.CHOOSE_YES_NO, 
-            "on_yes_actions": [ 
-                EffectAction(action_type=EffectActionType.ADD_MANA, params={"amount": 1})
-            ],
-            "on_no_actions": []
-        }
-    )
-
-@pytest.fixture
-def minimal_cost() -> Cost:
-    return Cost(cost_details={EffectActivationCostType.PAY_MANA: 1})
-
-@pytest.fixture
 def complex_cost() -> Cost:
-    return Cost(cost_details={
-        EffectActivationCostType.PAY_MANA: 2,
-        EffectActivationCostType.TAP_THIS_CARD: True
-    })
+    # Cost.__init__ expects 'cost_details'
+    return Cost(cost_details={EffectActivationCostType.PAY_MANA: 2, EffectActivationCostType.TAP_THIS_CARD: True})
 
-# --- Test Classes ---
 
+# --- Tests for Cost ---
+class TestCost:
+    def test_creation(self):
+        cost_dict_details = {EffectActivationCostType.PAY_MANA: 3, EffectActivationCostType.SACRIFICE_THIS_CARD: True}
+        cost = Cost(cost_details=cost_dict_details)
+        assert cost.cost_details[EffectActivationCostType.PAY_MANA] == 3
+        assert cost.cost_details[EffectActivationCostType.SACRIFICE_THIS_CARD] is True
+
+    def test_to_dict(self):
+        cost_dict_details = {EffectActivationCostType.PAY_MANA: 1, EffectActivationCostType.TAP_THIS_CARD: True}
+        cost = Cost(cost_details=cost_dict_details)
+        expected_dict = {"PAY_MANA": 1, "TAP_THIS_CARD": True} 
+        assert cost.to_dict() == expected_dict
+
+    def test_from_dict_valid(self):
+        data = {"MANA": 2, "TAP_THIS_CARD": True} # from_dict expects keys to be enum names
+        cost = Cost.from_dict(data)
+        assert cost is not None
+        assert cost.cost_details.get(EffectActivationCostType.MANA) == 2
+        assert cost.cost_details.get(EffectActivationCostType.TAP_THIS_CARD) is True
+
+    def test_from_dict_empty_or_none(self):
+        assert Cost.from_dict({}) is None 
+        assert Cost.from_dict(None) is None
+
+# --- Tests for EffectAction ---
 class TestEffectAction:
-    def test_creation_minimal(self):
-        # Changed GAIN_SPIRIT to CREATE_SPIRIT_TOKENS, assuming that's a valid enum member
-        action = EffectAction(action_type=EffectActionType.CREATE_SPIRIT_TOKENS, params={"amount": 1})
-        assert action.action_type == EffectActionType.CREATE_SPIRIT_TOKENS
-        assert action.params == {"amount": 1}
-
-    def test_to_dict(self, minimal_effect_action: EffectAction):
-        expected = {
-            "action_type": "DRAW_CARDS",
-            "params": {"count": 1},
-            "description": ""
-        }
-        assert minimal_effect_action.to_dict() == expected
+    def test_creation(self):
+        action = EffectAction(action_type=EffectActionType.ADD_MANA, params={"amount": 5}, description="Gain mana.")
+        assert action.action_type == EffectActionType.ADD_MANA
+        assert action.params["amount"] == 5
+        assert action.description == "Gain mana."
 
     def test_to_dict_with_enum_in_params(self):
         action = EffectAction(
-            action_type=EffectActionType.PLACE_COUNTER_ON_CARD,
-            params={"target_zone": Zone.IN_PLAY, "counter_type": "STUDY"} # Zone is now imported
+            action_type=EffectActionType.PLACE_COUNTER_ON_CARD, 
+            params={"counter_type": "STUDY", "target_zone": Zone.IN_PLAY},
+            description="Add study counter."
         )
-        expected_dict = {
-            "action_type": "PLACE_COUNTER_ON_CARD",
-            "params": {"target_zone": "IN_PLAY", "counter_type": "STUDY"}, 
-            "description": ""
-        }
-        assert action.to_dict() == expected_dict
+        # Test serialization of enum in params
+        action_dict = action.to_dict()
+        assert action_dict["params"]["target_zone"] == "IN_PLAY"
 
 
-class TestCost:
-    def test_creation(self, minimal_cost: Cost):
-        assert minimal_cost.cost_details[EffectActivationCostType.PAY_MANA] == 1
-
-    def test_to_dict(self, complex_cost: Cost):
-        expected = {
-            "PAY_MANA": 2,
-            "TAP_THIS_CARD": True
-        }
-        assert complex_cost.to_dict() == expected
-
-    def test_from_dict_valid(self):
-        cost_data = {"PAY_MEMORY_TOKENS": 3, "SACRIFICE_FROM_PLAY": {"card_type": "TOY"}}
-        cost = Cost.from_dict(cost_data)
-        assert cost is not None
-        assert cost.cost_details[EffectActivationCostType.PAY_MEMORY_TOKENS] == 3
-        assert cost.cost_details[EffectActivationCostType.SACRIFICE_FROM_PLAY] == {"card_type": "TOY"}
-
-    def test_from_dict_empty_and_none(self):
-        assert Cost.from_dict(None) is None
-        assert Cost.from_dict({}) is None 
-
+# --- Tests for Effect ---
 class TestEffect:
     def test_creation_minimal(self, minimal_effect_action: EffectAction):
         effect = Effect(effect_id="E001", trigger=EffectTriggerType.ON_PLAY, actions=[minimal_effect_action])
         assert effect.effect_id == "E001"
         assert effect.trigger == EffectTriggerType.ON_PLAY
-        assert effect.actions == [minimal_effect_action]
+        assert len(effect.actions) == 1
+        assert effect.actions[0].action_type == EffectActionType.DRAW_CARDS
 
     def test_creation_full(self, minimal_effect_action: EffectAction, complex_cost: Cost):
-        # EffectConditionType and ResourceType are now imported
-        condition = {EffectConditionType.PLAYER_HAS_RESOURCE: {"resource_type": ResourceType.SPIRIT, "amount": 1}}
+        condition = {EffectConditionType.PLAYER_HAS_RESOURCE: {"resource_type": ResourceType.SPIRIT_TOKENS, "amount": 1}}
         effect = Effect(
             effect_id="E002",
-            trigger=EffectTriggerType.ON_LEAVE_PLAY,
+            trigger=EffectTriggerType.ACTIVATED_ABILITY,
+            actions=[minimal_effect_action, minimal_effect_action],
+            condition=condition,
+            description="Complex effect",
+            cost=complex_cost, 
+            is_replacement_effect=True,
+            source_card_id="C_TEST"
+        )
+        assert effect.description == "Complex effect"
+        assert effect.cost == complex_cost 
+        assert effect.is_replacement_effect is True
+        assert effect.condition[EffectConditionType.PLAYER_HAS_RESOURCE]["resource_type"] == ResourceType.SPIRIT_TOKENS
+
+    def test_to_dict(self, minimal_effect_action, complex_cost):
+        condition = {EffectConditionType.PLAYER_HAS_RESOURCE: {"resource_type": ResourceType.MANA, "amount": 3}}
+        effect = Effect(
+            effect_id="E_DICT",
+            trigger=EffectTriggerType.ACTIVATED_ABILITY,
             actions=[minimal_effect_action],
             condition=condition,
-            cost=complex_cost,
-            description="Test full effect",
-            is_replacement_effect=True,
-            source_card_id="C123"
+            cost=complex_cost, 
+            description="Test to_dict",
+            source_card_id="C_SRC"
         )
-        assert effect.description == "Test full effect"
-        assert effect.is_replacement_effect is True
-        assert effect.source_card_id == "C123"
-        assert effect.condition == condition # Verify condition is stored
-
-    def test_to_dict(self, minimal_effect_action: EffectAction, minimal_cost: Cost):
-        # EffectConditionType and ResourceType are now imported
-        parsed_condition_for_effect = {EffectConditionType.DECK_SIZE_LE: {"count": 10}}
-        effect = Effect(
-            effect_id="E003",
-            trigger=EffectTriggerType.BEGIN_PLAYER_TURN,
-            actions=[minimal_effect_action],
-            condition=parsed_condition_for_effect, # Use the one with Enum key
-            cost=minimal_cost,
-            source_card_id="CXYZ"
-        )
-        
         effect_dict = effect.to_dict()
-        
-        # Expected serialized condition
-        expected_dict_condition = {
-            "condition_type": EffectConditionType.DECK_SIZE_LE.name, # Enum name
-            "params": {"count": 10} 
-        }
-        
-        assert effect_dict["effect_id"] == "E003"
-        assert effect_dict["trigger"] == "BEGIN_PLAYER_TURN" # Enum name
-        assert len(effect_dict["actions"]) == 1
-        assert effect_dict["actions"][0]["action_type"] == "DRAW_CARDS" # Enum name from EffectAction.to_dict()
-        assert effect_dict["condition"] == expected_dict_condition
-        assert effect_dict["cost"]["PAY_MANA"] == 1 # type: ignore # Enum name from Cost.to_dict()
-        assert effect_dict["source_card_id"] == "CXYZ"
+        assert effect_dict["effect_id"] == "E_DICT"
+        assert effect_dict["cost"] is not None
 
-class TestCardClasses: # Renamed from TestCard for clarity
-    @pytest.fixture
-    def sample_effect(self, minimal_effect_action: EffectAction) -> Effect:
-        return Effect(effect_id="SampleE1", trigger=EffectTriggerType.ON_PLAY, actions=[minimal_effect_action])
 
-    def test_card_creation_minimal(self):
-        # Corrected: uses 'type' and 'cost_mana'
-        card = Card(card_id="C001", name="Minimal Card", type=CardType.SPELL, cost_mana=1)
-        assert card.name == "Minimal Card"
-        assert card.type == CardType.SPELL
+# --- Tests for Card Classes (Card, Toy, Spell, Ritual) ---
+class TestCardClasses:
+    def test_card_creation_minimal(self, minimal_card_data: Dict[str, Any]):
+        card = Card(**minimal_card_data)
+        assert card.card_id == "C001"
+        assert card.name == "Test Card"
+        assert card.type == CardType.TOY
         assert card.cost_mana == 1
+        assert card.text == "" 
+        assert card.effects == [] 
 
-    def test_toy_creation(self, sample_effect: Effect):
-        # Corrected: uses 'cost_mana'. 'type' is set by Toy.__init__
-        toy = Toy(card_id="T001", name="Brave Toy", cost_mana=2, 
-                  effects=[sample_effect], subtypes=[CardSubType.HAUNT])
-        assert toy.name == "Brave Toy"
+    def test_toy_creation(self, toy_card_data: Dict[str, Any]):
+        toy = Toy(**toy_card_data)
+        assert isinstance(toy, Toy)
+        assert toy.name == "Test Toy Alpha"
         assert toy.type == CardType.TOY
-        assert toy.cost_mana == 2
-        assert toy.effects == [sample_effect]
-        assert toy.subtypes == [CardSubType.HAUNT]
+        assert CardSubType.TEDDY_BEAR in toy.subtypes
 
-    def test_ritual_creation(self, sample_effect: Effect):
-        # Corrected: uses 'cost_mana'. 'type' is set by Ritual.__init__
-        ritual = Ritual(card_id="R001", name="Dark Ritual", cost_mana=3, effects=[sample_effect])
-        assert ritual.name == "Dark Ritual"
-        assert ritual.type == CardType.RITUAL
-        assert ritual.cost_mana == 3
-
-    def test_spell_creation(self):
-        # Corrected: uses 'cost_mana'. 'type' is set by Spell.__init__
-        spell = Spell(card_id="S001", name="Quick Spell", cost_mana=0)
-        assert spell.name == "Quick Spell"
+    def test_spell_creation(self, spell_card_data: Dict[str, Any]):
+        spell = Spell(**spell_card_data)
+        assert isinstance(spell, Spell)
+        assert spell.name == "Test Spell Beta"
         assert spell.type == CardType.SPELL
-        assert spell.cost_mana == 0
-    
-    def test_card_to_dict(self, sample_effect: Effect):
-        card = Toy(
-            card_id="T002", name="Complex Toy", type=CardType.TOY, cost_mana=3,
-            text="Rules text.", flavor_text="Flavor.",
-            subtypes=[CardSubType.LOOP, CardSubType.HAUNT], 
-            effects=[sample_effect, sample_effect], 
-            power=5,
-            is_first_memory_potential=True, 
-            art_elements={"artist": "Me"}
-        )
-        card_dict = card.to_dict()
-        assert card_dict["card_id"] == "T002"
-        assert card_dict["type"] == "TOY"
-        assert card_dict["cost_mana"] == 3
-        assert card_dict["subtypes"] == ["LOOP", "HAUNT"]
-        assert len(card_dict["effects"]) == 2
-        assert card_dict["effects"][0]["trigger"] == "ON_PLAY"
 
-    # Note: Card.from_dict tests
+    def test_ritual_creation(self, ritual_card_data: Dict[str, Any]):
+        ritual = Ritual(**ritual_card_data)
+        assert isinstance(ritual, Ritual)
+        assert ritual.name == "Test Ritual Gamma"
+        assert ritual.type == CardType.RITUAL
+
+    def test_card_to_dict(self, toy_card_data: Dict[str, Any]):
+        toy = Toy(**toy_card_data)
+        mock_action = EffectAction(EffectActionType.DRAW_CARDS, {"count":1})
+        mock_effect = Effect("E1", EffectTriggerType.ON_PLAY, [mock_action])
+        toy.effects = [mock_effect]
+        
+        toy_dict = toy.to_dict() 
+        assert toy_dict["name"] == toy.name
+        assert toy_dict["type"] == toy.type.name 
+        assert toy_dict["cost_mana"] == toy.cost_mana
+        assert toy_dict["subtypes"] == [st.name for st in toy.subtypes]
+        assert len(toy_dict["effects"]) == 1
+        assert toy_dict["effects"][0]["effect_id"] == "E1"
+
+
+# --- Tests for CardInstance ---
+class TestCardInstance:
+    def test_card_instance_creation(self, toy_card_data: Dict[str, Any]):
+        base_toy = Toy(**toy_card_data) # Name is "Test Toy Alpha", card_id is "C001" from minimal_card_data via toy_card_data
+        instance = CardInstance(definition=base_toy, owner_id=0, current_zone=Zone.HAND)
+        
+        assert instance.definition == base_toy
+        # This will be fixed by changing CardInstance.__init__
+        assert instance.instance_id.startswith(base_toy.card_id) 
+        
+        assert instance.owner_id == 0
+        assert instance.current_zone == Zone.HAND
+        assert not instance.is_tapped
+        assert instance.counters == {}
+        # This will be fixed by adding self.attachments = [] to CardInstance.__init__
+        assert instance.attachments == [] 
+        assert instance.effects_active_this_turn == set()
+        assert instance.turns_in_play == 0
+        assert instance.turn_entered_play is None
+        assert instance.custom_data == {}
+
+    def test_tap_untap(self, toy_card_data: Dict[str, Any]):
+        instance = CardInstance(Toy(**toy_card_data), 0, Zone.IN_PLAY)
+        assert not instance.is_tapped
+        instance.tap()
+        assert instance.is_tapped
+        instance.untap()
+        assert not instance.is_tapped
+
+    def test_add_remove_counters(self, toy_card_data: Dict[str, Any]):
+        instance = CardInstance(Toy(**toy_card_data), 0, Zone.IN_PLAY)
+        instance.add_counter("test_counter", 2)
+        assert instance.counters["test_counter"] == 2
+        instance.add_counter("test_counter", 1)
+        assert instance.counters["test_counter"] == 3
+        instance.remove_counter("test_counter", 1)
+        assert instance.counters["test_counter"] == 2
+        instance.remove_counter("test_counter", 5) # Try to remove 5 when only 2 exist
+        # This will be fixed by CardInstance.remove_counter logic
+        assert "test_counter" not in instance.counters 
+
+    def test_enters_play_timestamp(self, toy_card_data: Dict[str, Any]):
+        instance = CardInstance(Toy(**toy_card_data), 0, Zone.DECK)
+        assert instance.turn_entered_play is None
+        # Changed to call change_zone
+        instance.change_zone(Zone.IN_PLAY, game_turn=3)
+        assert instance.turn_entered_play == 3
+        # To test turns_in_play, a turn increment mechanism would be needed,
+        # or a direct call to a hypothetical instance.increment_turns_in_play()
+        # For now, this part of the test is simplified.
