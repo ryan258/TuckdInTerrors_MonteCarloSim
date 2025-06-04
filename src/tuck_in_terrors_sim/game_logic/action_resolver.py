@@ -3,161 +3,179 @@
 
 from typing import Dict, Optional, Any, List 
 
-from .game_state import GameState, CardInPlay
-from ..game_elements.card import Card, EffectLogic 
+from .game_state import GameState, PlayerState # Use PlayerState
+from tuck_in_terrors_sim.game_elements.card import Card, Toy, Spell, Ritual, Effect, CardInstance
 from ..game_elements.enums import CardType, Zone, EffectTriggerType, EffectActivationCostType, ResourceType
-from .effect_engine import EffectEngine # Import the EffectEngine
+from .effect_engine import EffectEngine 
 
 class ActionResolver:
-    def __init__(self, game_state: 'GameState', effect_engine: 'EffectEngine'):
+    def __init__(self, game_state: GameState, effect_engine: EffectEngine):
         self.game_state = game_state
-        self.effect_engine = effect_engine # Store and use the EffectEngine
+        self.effect_engine = effect_engine 
 
-    def play_card_from_hand(self, card_to_play: Card, is_free_toy_play: bool = False, targets: Optional[List[Any]] = None) -> bool:
+    def _get_active_player(self) -> Optional[PlayerState]:
+        """Helper to get the active player's state."""
+        return self.game_state.get_active_player_state()
+
+    def play_card(self, card_instance_id_in_hand: str, is_free_toy_play: bool = False, targets: Optional[List[Any]] = None) -> bool:
         gs = self.game_state
+        active_player = self._get_active_player()
 
-        if card_to_play not in gs.hand:
-            gs.add_log_entry(f"Action Error: Card '{card_to_play.name}' (ID: {card_to_play.card_id}) not in hand.", level="ERROR")
+        if not active_player:
+            gs.add_log_entry("Action Error: No active player found to play card.", level="ERROR")
             return False
 
+        # Find the CardInstance in the player's hand
+        card_to_play_instance: Optional[CardInstance] = None
+        card_hand_idx = -1
+        for idx, inst in enumerate(active_player.zones[Zone.HAND]):
+            if inst.instance_id == card_instance_id_in_hand:
+                card_to_play_instance = inst
+                card_hand_idx = idx
+                break
+        
+        if not card_to_play_instance:
+            gs.add_log_entry(f"Action Error: Card instance '{card_instance_id_in_hand}' not in P{active_player.player_id}'s hand.", level="ERROR")
+            return False
+
+        card_def = card_to_play_instance.definition # The Card definition
+
+        # Cost and Playability Checks
         if is_free_toy_play:
-            if gs.free_toy_played_this_turn:
-                gs.add_log_entry(f"Action Error: Free Toy already played this turn. Cannot play '{card_to_play.name}' as free.", level="ERROR")
+            if active_player.has_played_free_toy_this_turn:
+                gs.add_log_entry(f"Action Error: Free Toy already played this turn. Cannot play '{card_def.name}'.", level="ERROR")
                 return False
-            if card_to_play.card_type != CardType.TOY:
-                gs.add_log_entry(f"Action Error: Cannot play '{card_to_play.name}' ({card_to_play.card_type.name}) as free Toy. Only Toys allowed.", level="ERROR")
+            if card_def.type != CardType.TOY:
+                gs.add_log_entry(f"Action Error: '{card_def.name}' ({card_def.type.name}) is not a Toy for Free Toy Play.", level="ERROR")
                 return False
-            gs.add_log_entry(f"Attempting to play '{card_to_play.name}' as Free Toy.")
+            gs.add_log_entry(f"P{active_player.player_id} attempts Free Toy Play: '{card_def.name}'.")
         else: 
-            if gs.mana_pool < card_to_play.cost:
-                gs.add_log_entry(f"Action Error: Not enough mana to play '{card_to_play.name}'. Has {gs.mana_pool}, needs {card_to_play.cost}.", level="ERROR")
+            if active_player.mana < card_def.cost_mana:
+                gs.add_log_entry(f"Action Error: P{active_player.player_id} needs {card_def.cost_mana} mana for '{card_def.name}', has {active_player.mana}.", level="ERROR")
                 return False
-            gs.add_log_entry(f"Attempting to play '{card_to_play.name}' for {card_to_play.cost} mana.")
-            # Pay cost BEFORE attempting to move card and trigger effects
-            gs.mana_pool -= card_to_play.cost 
-            gs.add_log_entry(f"Spent {card_to_play.cost} mana for '{card_to_play.name}'. Mana remaining: {gs.mana_pool}.")
+            gs.add_log_entry(f"P{active_player.player_id} attempts to play '{card_def.name}' for {card_def.cost_mana} mana.")
+            active_player.mana -= card_def.cost_mana 
+            gs.add_log_entry(f"P{active_player.player_id} spent {card_def.cost_mana} mana. Mana: {active_player.mana}.")
 
-        # Move Card from Hand
-        gs.hand.remove(card_to_play)
-        card_instance_just_played: Optional[CardInPlay] = None # To hold the CardInPlay instance if created
+        # Card is now being played. It moves from hand to "being_cast" or directly to its destination.
+        # For simplicity here, assume it's removed from hand, then processed.
+        # The card_to_play_instance is the actual object from hand.
+        active_player.zones[Zone.HAND].pop(card_hand_idx) 
+        # No, GameState.move_card_zone should handle removal from old zone.
 
-        if card_to_play.card_type == CardType.TOY or card_to_play.card_type == CardType.RITUAL:
-            card_instance = CardInPlay(base_card=card_to_play)
-            gs.cards_in_play[card_instance.instance_id] = card_instance
-            card_instance_just_played = card_instance 
-            gs.add_log_entry(f"Played {card_to_play.card_type.name} '{card_to_play.name}' (Instance: {card_instance.instance_id}) to play area.")
+        if card_def.type == CardType.TOY or card_def.type == CardType.RITUAL:
+            # CardInstance is already what we have (card_to_play_instance)
+            # We just need to move it to the IN_PLAY zone.
+            gs.move_card_zone(card_to_play_instance, Zone.IN_PLAY, active_player.player_id)
+            card_to_play_instance.turn_entered_play = gs.current_turn # Ensure this is set
+            
+            gs.add_log_entry(f"P{active_player.player_id} played {card_def.type.name} '{card_def.name}' ({card_to_play_instance.instance_id}) to play area.")
             
             # Trigger ON_PLAY effects for this card instance
-            self.effect_engine.trigger_effects(
-                trigger_type=EffectTriggerType.ON_PLAY,
-                source_card_instance_for_trigger=card_instance,
-                event_context={'played_card_instance': card_instance, 'targets': targets}
-            )
-            # Also trigger WHEN_OTHER_CARD_ENTERS_PLAY for other cards that might be listening
-            self.effect_engine.trigger_effects(
-                trigger_type=EffectTriggerType.WHEN_OTHER_CARD_ENTERS_PLAY,
-                event_context={'entered_card_instance': card_instance} 
-            )
+            for effect_obj in card_to_play_instance.definition.effects:
+                if effect_obj.trigger == EffectTriggerType.ON_PLAY:
+                    self.effect_engine.resolve_effect(
+                        effect=effect_obj,
+                        game_state=gs,
+                        player=active_player, # Player who controls the card and effect
+                        source_card_instance=card_to_play_instance,
+                        triggering_event_context={'played_card_instance_id': card_to_play_instance.instance_id, 'targets': targets}
+                    )
+            # TODO: Trigger WHEN_OTHER_CARD_ENTERS_PLAY for other cards (more complex, needs event manager or iteration)
 
-        elif card_to_play.card_type == CardType.SPELL:
-            gs.add_log_entry(f"Played Spell '{card_to_play.name}'. Resolving ON_PLAY effects...")
-            # Trigger ON_PLAY effects for this spell
-            # For spells, the source_card_definition is the Card object from hand
-            self.effect_engine.trigger_effects(
-                trigger_type=EffectTriggerType.ON_PLAY,
-                source_card_definition_for_trigger=card_to_play,
-                event_context={'played_card_definition': card_to_play, 'targets': targets}
-            )
-            # After ON_PLAY effects are resolved (which might modify game state), move spell to discard
-            gs.discard_pile.append(card_to_play)
-            gs.add_log_entry(f"Spell '{card_to_play.name}' moved to discard pile after resolution.")
+        elif card_def.type == CardType.SPELL:
+            gs.add_log_entry(f"P{active_player.player_id} plays Spell '{card_def.name}'. Resolving...")
+            # Spells typically don't enter play as persistent instances in the same way.
+            # Their effects trigger, and then they go to discard.
+            # The card_to_play_instance represents the spell card.
+            # Trigger ON_PLAY effects for this spell. Source is the spell instance itself.
+            for effect_obj in card_to_play_instance.definition.effects:
+                 if effect_obj.trigger == EffectTriggerType.ON_PLAY:
+                    self.effect_engine.resolve_effect(
+                        effect=effect_obj,
+                        game_state=gs,
+                        player=active_player, # Player casting the spell
+                        source_card_instance=card_to_play_instance, # Spell instance as source context
+                        triggering_event_context={'played_spell_instance_id': card_to_play_instance.instance_id, 'targets': targets}
+                    )
+            # After ON_PLAY effects resolve, move spell instance to discard.
+            gs.move_card_zone(card_to_play_instance, Zone.DISCARD, active_player.player_id)
+            gs.add_log_entry(f"Spell '{card_def.name}' ({card_to_play_instance.instance_id}) moved to P{active_player.player_id}'s discard pile.")
 
         # Update Game State Flags
         if is_free_toy_play:
-            gs.free_toy_played_this_turn = True
-            gs.add_log_entry("Free Toy play for the turn has been used.")
+            active_player.has_played_free_toy_this_turn = True # Flag on PlayerState
+            gs.add_log_entry("Free Toy play for P{active_player.player_id} used this turn.")
             
-        if card_to_play.card_type == CardType.SPELL: # Storm typically counts spells
-            gs.storm_count_this_turn +=1 
-            gs.add_log_entry(f"Spell played. Storm count this turn now: {gs.storm_count_this_turn}.")
+        if card_def.type == CardType.SPELL: 
+            # gs.storm_count_this_turn +=1 # Assuming storm_count is on GameState for now
+            # gs.add_log_entry(f"Spell played. Storm count this turn now: {gs.storm_count_this_turn}.")
+            pass # Storm count might be tracked on PlayerState or GameState
 
         return True
 
-    def activate_ability(self, card_in_play_instance_id: str, effect_logic_index: int, targets: Optional[List[Any]] = None) -> bool:
+    def activate_ability(self, card_instance_id: str, effect_index: int, targets: Optional[List[Any]] = None) -> bool:
         gs = self.game_state
-        card_instance = gs.get_card_in_play_by_instance_id(card_in_play_instance_id)
+        active_player = self._get_active_player()
+        card_instance = gs.get_card_instance(card_instance_id) # Fetches from any zone if needed, but usually IN_PLAY
 
+        if not active_player:
+            gs.add_log_entry("Action Error: No active player to activate ability.", level="ERROR"); return False
         if not card_instance:
-            gs.add_log_entry(f"Action Error: Card instance '{card_in_play_instance_id}' not found in play.", level="ERROR")
-            return False
+            gs.add_log_entry(f"Action Error: Card instance '{card_instance_id}' not found.", level="ERROR"); return False
+        if card_instance.controller_id != active_player.player_id:
+            gs.add_log_entry(f"Action Error: P{active_player.player_id} cannot activate ability of card '{card_instance.definition.name}' controlled by P{card_instance.controller_id}.", level="ERROR"); return False
 
-        if not (0 <= effect_logic_index < len(card_instance.card_definition.effect_logic_list)):
-            gs.add_log_entry(f"Action Error: Invalid effect_logic_index {effect_logic_index} for card '{card_instance.card_definition.name}'.", level="ERROR")
-            return False
 
-        ability_logic = card_instance.card_definition.effect_logic_list[effect_logic_index]
+        card_def = card_instance.definition
+        if not (0 <= effect_index < len(card_def.effects)):
+            gs.add_log_entry(f"Action Error: Invalid effect_index {effect_index} for '{card_def.name}'.", level="ERROR"); return False
+
+        ability_effect_obj = card_def.effects[effect_index] # This is an Effect object
         
-        # Convert trigger string from EffectLogic to EffectTriggerType enum member
-        trigger_as_enum = None
-        try:
-            trigger_as_enum = EffectTriggerType[ability_logic.trigger] # Assumes trigger string matches enum member name
-        except KeyError:
-             gs.add_log_entry(f"Action Error: Unknown trigger type string '{ability_logic.trigger}' for ability on '{card_instance.card_definition.name}'.", level="ERROR")
-             return False
+        if ability_effect_obj.trigger not in [EffectTriggerType.ACTIVATED_ABILITY, EffectTriggerType.TAP_ABILITY]:
+            gs.add_log_entry(f"Action Error: Effect {effect_index} ('{ability_effect_obj.description}') on '{card_def.name}' is not an activatable type (Trigger: {ability_effect_obj.trigger.name}).", level="ERROR"); return False
 
+        # Check once-per-turn for this specific instance's effect
+        # Requires CardInstance to track used effects, e.g., card_instance.effects_used_this_turn : Set[str]
+        # effect_signature = ability_effect_obj.effect_id 
+        # if effect_signature in card_instance.effects_used_this_turn:
+        #    gs.add_log_entry(f"Ability '{ability_effect_obj.description}' on '{card_def.name}' already used this turn.", level="ERROR"); return False
 
-        if trigger_as_enum not in [EffectTriggerType.ACTIVATED_ABILITY, EffectTriggerType.TAP_ABILITY]:
-            gs.add_log_entry(f"Action Error: Effect '{ability_logic.description or effect_logic_index}' on '{card_instance.card_definition.name}' is not an activatable type (Trigger: {ability_logic.trigger}).", level="ERROR")
-            return False
-
-        # Check once-per-turn
-        effect_signature = f"effect_{effect_logic_index}" # Unique signature for this ability on this card instance
-        if ability_logic.is_once_per_turn and card_instance.effects_active_this_turn.get(effect_signature):
-            gs.add_log_entry(f"Action Error: Ability '{ability_logic.description or effect_logic_index}' on '{card_instance.card_definition.name}' already used this turn.", level="ERROR")
-            return False
-
-        # Check tap requirement for TAP_ABILITY
-        if trigger_as_enum == EffectTriggerType.TAP_ABILITY and card_instance.is_tapped:
-            gs.add_log_entry(f"Action Error: Cannot activate tap ability of '{card_instance.card_definition.name}' because it is already tapped.", level="ERROR")
-            return False
-
-        # Placeholder: Check and Pay Activation Costs
-        can_pay_all_costs = True 
-        if ability_logic.activation_costs:
-            gs.add_log_entry(f"Placeholder: Checking and paying activation costs for ability '{ability_logic.description}' on '{card_instance.card_definition.name}'...")
-            # TODO: Implement cost checking and payment logic here (Phase 4)
-            # This involves iterating ability_logic.activation_costs
-            # For each cost_data in ability_logic.activation_costs:
-            #   cost_type_str = cost_data.get("cost_type")
-            #   cost_type = EffectActivationCostType[cost_type_str]
-            #   cost_params = cost_data.get("params")
-            #   if not self._can_pay_specific_cost(gs, card_instance, cost_type, cost_params): # New helper
-            #       can_pay_all_costs = False; break
-            # If all can_pay_all_costs:
-            #   For each cost_data:
-            #       self._pay_specific_cost(gs, card_instance, cost_type, cost_params) # New helper
-            pass # Actual cost payment logic will be complex and added in EffectEngine or here.
-
-        if not can_pay_all_costs:
-            # Error message would ideally be logged by the cost payment logic
-            gs.add_log_entry(f"Action Error: Cannot pay activation costs for ability on '{card_instance.card_definition.name}'.", level="ERROR") # Generic if specific fails
-            return False
+        # Check costs (including tap for TAP_ABILITY)
+        # TODO: Detailed cost checking and payment (Phase 4)
+        # This needs to use ability_effect_obj.cost (which is a Cost object)
+        # For now, simplified:
+        if ability_effect_obj.trigger == EffectTriggerType.TAP_ABILITY:
+            if card_instance.is_tapped:
+                gs.add_log_entry(f"Action Error: Cannot activate tap ability of '{card_def.name}', already tapped.", level="ERROR"); return False
+            card_instance.tap()
+            gs.add_log_entry(f"Card '{card_def.name}' tapped for ability.")
         
-        gs.add_log_entry(f"Activating ability '{ability_logic.description or effect_logic_index}' of '{card_instance.card_definition.name}'.")
+        # Placeholder for other costs from ability_effect_obj.cost
+        if ability_effect_obj.cost:
+            can_pay = True # Assume true for now
+            # Actual logic: iterate ability_effect_obj.cost.cost_details
+            # Check mana, spirits, sacrifices, etc. against active_player's resources
+            # If not can_pay, return False. Then, pay costs.
+            gs.add_log_entry(f"Placeholder: Checking/paying costs for ability: {ability_effect_obj.cost}", "TODO")
+            if not can_pay:
+                 gs.add_log_entry(f"Action Error: Cannot pay costs for ability on '{card_def.name}'.", "ERROR"); return False
 
-        # Tap the card if it's a TAP_ABILITY (and not already tapped as part of costs)
-        if trigger_as_enum == EffectTriggerType.TAP_ABILITY: 
-             if not card_instance.is_tapped: # Defensive check
-                card_instance.tap()
-                gs.add_log_entry(f"Card '{card_instance.card_definition.name}' tapped for ability.")
 
-        # Resolve the ability's actual effects using EffectEngine
-        # For an activated ability, the source is the card instance itself.
-        self.effect_engine.resolve_effect_logic(ability_logic, source_card_instance=card_instance, targets=targets)
+        gs.add_log_entry(f"P{active_player.player_id} activating ability '{ability_effect_obj.description or effect_index}' of '{card_def.name}'.")
+
+        # Resolve the ability's Effect object
+        self.effect_engine.resolve_effect(
+            effect=ability_effect_obj,
+            game_state=gs,
+            player=active_player, # Player activating the ability
+            source_card_instance=card_instance, # The card whose ability is being activated
+            triggering_event_context={'activated_ability_on_instance_id': card_instance.instance_id, 'targets': targets}
+        )
         
-        if ability_logic.is_once_per_turn:
-            card_instance.effects_active_this_turn[effect_signature] = True
-            gs.add_log_entry(f"Ability '{ability_logic.description or effect_logic_index}' on '{card_instance.card_definition.name}' marked as used this turn.")
+        # Mark as used if once per turn
+        # if once_per_turn_flag_on_effect_obj: card_instance.effects_used_this_turn.add(effect_signature)
         
         return True
 

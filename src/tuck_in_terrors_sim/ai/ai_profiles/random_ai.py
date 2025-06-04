@@ -1,112 +1,110 @@
 # src/tuck_in_terrors_sim/ai/ai_profiles/random_ai.py
-# Implements basic AI that makes random valid moves
-
 import random
-from typing import List, Any, Dict, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Dict, Any, Optional
 
-from tuck_in_terrors_sim.ai.ai_player_base import AIPlayerBase
-from tuck_in_terrors_sim.game_elements.enums import PlayerChoiceType 
-from tuck_in_terrors_sim.game_elements.card import Card # Added import for type checking
+from ..ai_player_base import AIPlayerBase
+from ...game_elements.card import CardInstance # For type hints
+from ...game_logic.game_state import PlayerState # For type hints and accessing player state
+from ...game_elements.enums import Zone, PlayerChoiceType # For make_choice logic
+from ...models.game_action_model import GameAction 
 
 if TYPE_CHECKING:
-    from tuck_in_terrors_sim.game_logic.game_state import GameState
-    # from tuck_in_terrors_sim.game_elements.card import Card # Already imported above
+    from ...game_logic.game_state import GameState
 
 
 class RandomAI(AIPlayerBase):
-    """
-    An AI player that makes random valid decisions.
-    """
+    def __init__(self, player_id: int, game_config: Optional[Dict[str, Any]] = None):
+        super().__init__(player_id, game_config)
+        self.rng = random.Random()
 
-    def __init__(self, player_name: str = "RandomAI"):
-        super().__init__(player_name)
-
-    def choose_action(self, game_state: 'GameState', valid_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Randomly selects an action from the list of valid actions.
-        It will try to avoid choosing 'PASS_TURN' if other actions are available.
-        """
-        if not valid_actions:
-            game_state.add_log_entry(f"AI ({self.player_name}): No valid actions provided to choose_action. This is unexpected.", level="WARNING")
-            return {'type': 'PASS_TURN', 'params': {}} 
-
-        non_pass_actions = [action for action in valid_actions if action.get('type') != 'PASS_TURN']
-        pass_action = next((action for action in valid_actions if action.get('type') == 'PASS_TURN'), None)
-
+    def decide_action(self, game_state: 'GameState', possible_actions: List['GameAction']) -> Optional['GameAction']:
+        if not possible_actions:
+            game_state.add_log_entry(f"AI P{self.player_id} (RandomAI): No possible actions to decide from.", "AI_DEBUG")
+            return None
+        
+        # Prefer non-pass actions if available
+        non_pass_actions = [action for action in possible_actions if action.type != "PASS_TURN"]
         if non_pass_actions:
-            chosen_action = random.choice(non_pass_actions)
-            game_state.add_log_entry(f"AI ({self.player_name}): Randomly chose action: {chosen_action.get('description', chosen_action.get('type'))}", level="DEBUG")
+            chosen_action = self.rng.choice(non_pass_actions)
+            game_state.add_log_entry(f"AI P{self.player_id} (RandomAI) decided action: {chosen_action.description}", "AI_ACTION")
             return chosen_action
-        elif pass_action:
-            game_state.add_log_entry(f"AI ({self.player_name}): Only PASS_TURN action available or chosen.", level="DEBUG")
-            return pass_action
-        else:
-            game_state.add_log_entry(f"AI ({self.player_name}): No actions (not even PASS_TURN) found in valid_actions. Critical error.", level="ERROR")
-            return {'type': 'PASS_TURN', 'params': {}}
-
+        
+        # If only PASS_TURN is available, choose it (or if list was empty, which is handled above)
+        chosen_action = self.rng.choice(possible_actions) 
+        game_state.add_log_entry(f"AI P{self.player_id} (RandomAI) decided action: {chosen_action.description}", "AI_ACTION")
+        return chosen_action
 
     def make_choice(self, game_state: 'GameState', choice_context: Dict[str, Any]) -> Any:
-        """
-        Makes a random choice based on the provided context.
-        """
-        choice_id = choice_context.get('choice_id', 'UnknownChoice')
-        choice_type_str = choice_context.get('choice_type')
-        options = choice_context.get('options')
-        prompt = choice_context.get('prompt_text', 'Make a choice.')
+        choice_type: Optional[PlayerChoiceType] = choice_context.get("choice_type")
+        options: Optional[List[Any]] = choice_context.get("options")
+        prompt = choice_context.get("prompt_text", f"AI P{self.player_id} making a choice")
+        game_state.add_log_entry(f"AI P{self.player_id} (RandomAI) sees choice: {prompt} (Type: {choice_type}, Options: {options})", "AI_DEBUG")
 
-        game_state.add_log_entry(f"AI ({self.player_name}): Making choice for '{prompt}' (ID: {choice_id}, Type: {choice_type_str})", level="DEBUG")
+        player_s = game_state.get_player_state(self.player_id) # Get player state for context
 
-        try:
-            choice_type_enum = PlayerChoiceType[choice_type_str] if choice_type_str else None
-        except KeyError:
-            game_state.add_log_entry(f"AI ({self.player_name}): Unknown choice_type string '{choice_type_str}'. Cannot make specific random choice.", level="WARNING")
-            choice_type_enum = None
-
-        decision = None
-
-        if choice_type_enum == PlayerChoiceType.CHOOSE_YES_NO:
-            decision = random.choice([True, False])
-            game_state.add_log_entry(f"AI ({self.player_name}): Randomly chose Yes/No: {decision}", level="DEBUG")
+        if choice_type == PlayerChoiceType.CHOOSE_YES_NO:
+            decision = self.rng.choice([True, False])
+            game_state.add_log_entry(f"AI P{self.player_id} chose: {'YES' if decision else 'NO'} for '{prompt}'", "AI_CHOICE")
             return decision
         
-        elif choice_type_enum == PlayerChoiceType.DISCARD_CARD_OR_SACRIFICE_SPIRIT:
-            # Options should be ["DISCARD", "SACRIFICE_SPIRIT"] or similar
-            if isinstance(options, list) and options:
-                decision = random.choice(options)
-            else: 
-                game_state.add_log_entry(f"AI ({self.player_name}): Options for {choice_type_str} not clear or missing, defaulting to random choice between DISCARD/SACRIFICE_SPIRIT.", level="WARNING")
-                decision = random.choice(["DISCARD", "SACRIFICE_SPIRIT"]) 
-            game_state.add_log_entry(f"AI ({self.player_name}): For {choice_type_str}, chose: {decision}", level="DEBUG")
-            return decision
+        elif choice_type == PlayerChoiceType.DISCARD_CARD_OR_SACRIFICE_SPIRIT:
+            can_discard = False
+            if player_s and player_s.zones.get(Zone.HAND):
+                can_discard = True
+            
+            can_sacrifice_spirit = False
+            if player_s and player_s.spirit_tokens > 0:
+                can_sacrifice_spirit = True
 
-        elif choice_type_enum == PlayerChoiceType.CHOOSE_CARD_FROM_HAND:
-            # 'options' should be a list of Card objects currently in hand, passed by EffectEngine
-            if isinstance(options, list) and options: 
-                # Ensure options are actually Card objects as expected by EffectEngine when processing discard
-                valid_card_options = [opt for opt in options if isinstance(opt, Card)]
-                if valid_card_options:
-                    decision = random.choice(valid_card_options)
-                    game_state.add_log_entry(f"AI ({self.player_name}): Randomly chose card from hand: '{decision.name if decision else 'None'}'", level="DEBUG")
-                    return decision
-                else:
-                    game_state.add_log_entry(f"AI ({self.player_name}): No valid Card objects in options for CHOOSE_CARD_FROM_HAND. Options: {options}", level="WARNING")
-                    return None # Cannot make a choice
-            else: # Hand is empty or options malformed
-                game_state.add_log_entry(f"AI ({self.player_name}): Cannot CHOOSE_CARD_FROM_HAND, hand is empty or options malformed. Options: {options}", level="INFO")
-                return None
-        
-        # Generic handling for other choices where 'options' is a list
-        elif isinstance(options, list) and options:
-            decision = random.choice(options)
-            log_decision = decision # Default log
-            if hasattr(decision, 'name'): # e.g. if it's a Card object
-                log_decision = getattr(decision, 'name')
-            elif isinstance(decision, dict) and 'description' in decision: # e.g. if it's an action dict
-                log_decision = decision['description']
-            game_state.add_log_entry(f"AI ({self.player_name}): Randomly chose '{log_decision}' from generic list of options.", level="DEBUG")
+            available_choices = []
+            if can_discard: available_choices.append("DISCARD")
+            if can_sacrifice_spirit: available_choices.append("SACRIFICE_SPIRIT")
+
+            if not available_choices: # Cannot do either
+                game_state.add_log_entry(f"AI P{self.player_id}: Cannot satisfy DISCARD_CARD_OR_SACRIFICE_SPIRIT. Defaulting to 'fail sacrifice' (False).", "WARNING")
+                return False # Corresponds to "no" / "sacrifice" path, engine handles inability
+
+            chosen_ai_option = self.rng.choice(available_choices)
+            game_state.add_log_entry(f"AI P{self.player_id} chose: {chosen_ai_option} for '{prompt}'", "AI_CHOICE")
+            return chosen_ai_option == "DISCARD" # True if discard, False if sacrifice
+
+        elif options and isinstance(options, list) and options:
+            decision = self.rng.choice(options)
+            game_state.add_log_entry(f"AI P{self.player_id} chose: {decision} from options for '{prompt}'", "AI_CHOICE")
             return decision
+        else: 
+            game_state.add_log_entry(f"AI P{self.player_id}: No options for {choice_type} or type unhandled. Defaulting to None for '{prompt}'.", "WARNING")
+            return None # Default for unhandled or option-less choices
+
+    def choose_targets(self, game_state: 'GameState', action_params: Dict[str, Any], num_targets: int, target_filter: Dict[str, Any]) -> List[str]:
+        player_s = game_state.get_player_state(self.player_id)
+        if not player_s: return []
         
-        if decision is None: # Fallback if no specific logic matched or options were unsuitable
-            game_state.add_log_entry(f"AI ({self.player_name}): Could not make a random choice for '{prompt}' (Type: {choice_type_str}). Options format or choice type might be unhandled by RandomAI. Returning None.", level="WARNING")
+        # Simplified: get all card instances in play controlled by the player
+        # A real AI would use target_filter to narrow down valid targets
+        potential_targets = [inst.instance_id for inst in game_state.cards_in_play.values() if inst.controller_id == self.player_id]
         
-        return decision
+        if not potential_targets: return []
+        
+        actual_num_to_choose = min(num_targets, len(potential_targets))
+        if actual_num_to_choose == 0 and num_targets > 0: return []
+        
+        chosen_targets = self.rng.sample(potential_targets, actual_num_to_choose)
+        game_state.add_log_entry(f"AI P{self.player_id} chose targets: {chosen_targets}", "AI_DEBUG")
+        return chosen_targets
+
+    def choose_cards_to_discard(self, game_state: 'GameState', num_to_discard: int, reason: Optional[str] = None) -> List[str]:
+        player_s = game_state.get_player_state(self.player_id)
+        if not player_s: return []
+
+        hand_instances = player_s.zones.get(Zone.HAND, [])
+        if not hand_instances: return []
+        
+        hand_card_ids = [card.instance_id for card in hand_instances]
+        
+        actual_num_to_discard = min(num_to_discard, len(hand_card_ids))
+        if actual_num_to_discard == 0: return []
+        
+        chosen_to_discard_ids = self.rng.sample(hand_card_ids, actual_num_to_discard)
+        game_state.add_log_entry(f"AI P{self.player_id} chose to discard IDs: {chosen_to_discard_ids} (Reason: {reason or 'N/A'})", "AI_ACTION")
+        return chosen_to_discard_ids

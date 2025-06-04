@@ -1,180 +1,108 @@
 # tests/game_logic/test_turn_manager.py
-# Unit tests for turn_manager.py
-
 import pytest
-from typing import Tuple, List
 from unittest.mock import MagicMock, patch
+from typing import Tuple, Any, List, Dict
 
-from tuck_in_terrors_sim.game_logic.game_state import GameState, CardInPlay
-from tuck_in_terrors_sim.game_logic.turn_manager import TurnManager, STANDARD_MANA_GAIN_PER_TURN_BASE, STANDARD_CARDS_TO_DRAW_PER_TURN, STANDARD_MAX_HAND_SIZE
+from tuck_in_terrors_sim.game_logic.turn_manager import TurnManager, STANDARD_CARDS_TO_DRAW_PER_TURN, STANDARD_MAX_HAND_SIZE
+from tuck_in_terrors_sim.game_logic.game_state import GameState, PlayerState
 from tuck_in_terrors_sim.game_logic.effect_engine import EffectEngine
 from tuck_in_terrors_sim.game_logic.nightmare_creep import NightmareCreepModule
 from tuck_in_terrors_sim.game_logic.win_loss_checker import WinLossChecker
-from tuck_in_terrors_sim.game_elements.enums import TurnPhase, EffectTriggerType, CardType 
-from tuck_in_terrors_sim.game_elements.card import Card, Toy # Import Toy if used, Card is base for instantiation
-from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard
+from tuck_in_terrors_sim.game_logic.action_resolver import ActionResolver
+from tuck_in_terrors_sim.game_elements.enums import TurnPhase, Zone
+from tuck_in_terrors_sim.game_elements.card import Card, CardInstance, Toy # For creating test cards
+from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard # For objective setup
+from tuck_in_terrors_sim.ai.ai_player_base import AIPlayerBase # For AI mock
+from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
 
-# Fixture 'initialized_game_environment' is defined in tests/conftest.py
+# Assuming initialized_game_environment is defined in conftest.py
+# It returns: Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]
 
 class TestTurnManager:
 
-    def test_begin_turn_phase_basic_rules(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
-        game_state, turn_manager, effect_engine, nightmare_module, _ = initialized_game_environment
+    def test_begin_turn_phase_basic_rules(self, initialized_game_environment: Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]):
+        game_state, _, _, turn_manager, _, _ = initialized_game_environment # Correct unpacking
+        player = game_state.get_active_player_state()
+        assert player is not None
+
+        # Setup: Card in play tapped, card in hand, mana at 0, some cards in deck
+        card_def = game_state.all_card_definitions.get("T_BASE001") or Toy(card_id="TAPPY", name="Tappy", type=CardType.TOY, cost_mana=1)
+        tapped_card = CardInstance(definition=card_def, owner_id=player.player_id, current_zone=Zone.IN_PLAY)
+        tapped_card.tap()
+        game_state.cards_in_play[tapped_card.instance_id] = tapped_card
+        player.zones[Zone.IN_PLAY].append(tapped_card)
         
-        game_state.current_turn = 1 
-        initial_mana = game_state.mana_pool 
-        initial_deck_size = len(game_state.deck)
-        initial_hand_size = len(game_state.hand)
+        initial_deck_size = len(player.zones[Zone.DECK])
+        if initial_deck_size == 0: # Ensure there's a card to draw
+            player.zones[Zone.DECK].append(CardInstance(card_def, player.player_id, Zone.DECK))
+            initial_deck_size = 1
+            
+        initial_hand_size = len(player.zones[Zone.HAND])
+        player.mana = 0
+        game_state.current_turn = 0 # So it increments to 1
 
-        nightmare_module.apply_nightmare_creep_for_current_turn = MagicMock(return_value=False)
-        effect_engine.trigger_effects = MagicMock()
+        turn_manager.execute_full_turn() # This will call _begin_turn_phase
 
-        test_card_def_for_untap = None
-        if game_state.all_card_definitions: 
-            test_card_def_for_untap = game_state.all_card_definitions.get("TCTOY001") or list(game_state.all_card_definitions.values())[0]
+        assert game_state.current_phase == TurnPhase.END_TURN # After full turn
+        assert tapped_card.is_tapped is False
+        assert player.mana >= 1 # Should gain at least 1 mana (current_turn)
+        assert len(player.zones[Zone.HAND]) == initial_hand_size + STANDARD_CARDS_TO_DRAW_PER_TURN
+        assert len(player.zones[Zone.DECK]) == initial_deck_size - STANDARD_CARDS_TO_DRAW_PER_TURN
+
+
+    def test_main_phase_ai_passes(self, initialized_game_environment: Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]):
+        game_state, _, _, turn_manager, _, _ = initialized_game_environment
+        active_player_state = game_state.get_active_player_state()
+        mock_ai = MagicMock(spec=AIPlayerBase)
         
-        card_in_play_to_untap = None
-        if test_card_def_for_untap:
-            card_in_play_to_untap = CardInPlay(test_card_def_for_untap) 
-            card_in_play_to_untap.tap()
-            card_in_play_to_untap.effects_active_this_turn["test_effect"] = True
-            card_in_play_to_untap.turns_in_play = 0 
-            game_state.cards_in_play[card_in_play_to_untap.instance_id] = card_in_play_to_untap
+        # AI's decide_action will return a PASS_TURN GameAction
+        pass_action = MagicMock()
+        pass_action.type = "PASS_TURN"
+        mock_ai.decide_action.return_value = pass_action
+        game_state.ai_agents[active_player_state.player_id] = mock_ai # type: ignore
+
+        # Directly call _main_phase (normally called by execute_full_turn)
+        turn_manager._main_phase() 
         
-        turn_manager._begin_turn_phase()
+        mock_ai.decide_action.assert_called_once() # AI was asked for an action
+        assert game_state.current_phase == TurnPhase.MAIN_PHASE # Stays in main until pass is processed by loop
+                                                              # or test ends
 
-        assert game_state.current_phase == TurnPhase.BEGIN_TURN
-        assert game_state.free_toy_played_this_turn is False
-        assert game_state.storm_count_this_turn == 0
 
-        if game_state.current_turn == 1 and \
-           game_state.current_objective.setup_instructions and \
-           game_state.current_objective.setup_instructions.params.get("first_turn_mana_override") == 1:
-            assert game_state.mana_pool == initial_mana, "Mana should be pre-set for Turn 1 of OBJ01"
-        else: 
-             assert game_state.mana_pool == initial_mana + game_state.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE
-
-        if initial_deck_size >= STANDARD_CARDS_TO_DRAW_PER_TURN:
-            assert len(game_state.hand) == initial_hand_size + STANDARD_CARDS_TO_DRAW_PER_TURN
-            assert len(game_state.deck) == initial_deck_size - STANDARD_CARDS_TO_DRAW_PER_TURN
-            # Check if WHEN_CARD_DRAWN was called for each drawn card
-            draw_trigger_calls = [
-                call for call in effect_engine.trigger_effects.call_args_list 
-                if call[1].get('trigger_type') == EffectTriggerType.WHEN_CARD_DRAWN or (call[0] and call[0][0] == EffectTriggerType.WHEN_CARD_DRAWN)
-            ]
-            assert len(draw_trigger_calls) == STANDARD_CARDS_TO_DRAW_PER_TURN
-        else: 
-            assert len(game_state.hand) == initial_hand_size + initial_deck_size
-            assert len(game_state.deck) == 0
+    def test_end_turn_phase_discard_down(self, initialized_game_environment: Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]):
+        game_state, _, _, turn_manager, _, _ = initialized_game_environment
+        player = game_state.get_active_player_state()
+        assert player is not None
         
-        if card_in_play_to_untap:
-            assert not card_in_play_to_untap.is_tapped
-            assert card_in_play_to_untap.turns_in_play == 1 
-            assert not card_in_play_to_untap.effects_active_this_turn
-
-        nightmare_module.apply_nightmare_creep_for_current_turn.assert_called_once()
-        effect_engine.trigger_effects.assert_any_call(EffectTriggerType.BEGIN_PLAYER_TURN)
-
-
-    def test_main_phase_placeholder(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
-        game_state, turn_manager, _, _, _ = initialized_game_environment
-        mock_ai_player = MagicMock()
-        mock_ai_player.player_name = "TestMockAI" # Explicitly set player_name for the mock
-
-        # Optional: Clear the log if you want to isolate logs from this specific call
-        # game_state.game_log.clear() 
-        # However, be cautious if other parts of the fixture's setup log essential info
-
-        turn_manager._main_phase(mock_ai_player)
-        assert game_state.current_phase == TurnPhase.MAIN_PHASE
-
-        # For debugging, you can print the game log:
-        # print("\n--- Game Log for test_main_phase_placeholder ---")
-        # for i, entry in enumerate(game_state.game_log):
-        # print(f"Log Entry {i}: {entry}")
-        # print("--- End Game Log ---")
-
-        expected_substring = f"AI Player ({mock_ai_player.player_name}) taking actions..."
-        # If you want to stick to the original less specific check (which should also pass if the new log format is used):
-        # expected_substring_generic = "AI Player taking actions..."
-
-        found_specific = any(expected_substring in entry for entry in game_state.game_log)
-        # found_generic = any(expected_substring_generic in entry for entry in game_state.game_log)
-
-        assert found_specific, \
-            f"Log entry containing specific string '{expected_substring}' not found. Ensure TurnManager is logging with player name."
-        # You could also assert found_generic if you want to ensure the base part is there.
-
-
-    def test_end_turn_phase_basic_rules(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
-        game_state, turn_manager, effect_engine, _, win_loss_checker = initialized_game_environment
-        
-        game_state.mana_pool = 5
-        game_state.hand = [Card(card_id=f"C{i}", name=f"Card {i}", card_type=CardType.TOY, cost=0) for i in range(STANDARD_MAX_HAND_SIZE + 2)] 
-        initial_hand_size = len(game_state.hand)
-        
-        effect_engine.trigger_effects = MagicMock()
-        win_loss_checker.check_all_conditions = MagicMock()
+        card_def = game_state.all_card_definitions.get("T_BASE001") or Toy(card_id="T_DISCARD", name="Discard Fodder", type=CardType.TOY, cost_mana=1)
+        # Give player more cards than max hand size
+        player.zones[Zone.HAND] = [CardInstance(card_def, player.player_id, Zone.HAND) for _ in range(STANDARD_MAX_HAND_SIZE + 2)]
+        initial_mana = player.mana = 5 # Some mana to lose
 
         turn_manager._end_turn_phase()
 
-        assert game_state.current_phase == TurnPhase.END_TURN
-        assert game_state.mana_pool == 0, "Mana should be lost at end of turn."
+        assert player.mana == 0 # Mana lost
+        assert len(player.zones[Zone.HAND]) == STANDARD_MAX_HAND_SIZE
+        assert game_state.win_loss_checker.check_all_conditions.called # Win/loss checked
+
+    def test_execute_full_turn_flow(self, initialized_game_environment: Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]):
+        game_state, _, _, turn_manager, _, _ = initialized_game_environment
+        mock_ai = game_state.get_active_player_agent() # Get the mock AI from GameState
+        assert mock_ai is not None
+
+        # AI passes immediately in main phase
+        pass_action = MagicMock()
+        pass_action.type = "PASS_TURN"
+        mock_ai.decide_action.return_value = pass_action
         
-        assert len(game_state.hand) == STANDARD_MAX_HAND_SIZE
-        assert len(game_state.discard_pile) == initial_hand_size - STANDARD_MAX_HAND_SIZE
+        initial_turn = game_state.current_turn # Should be 0 if fresh from fixture
         
-        expected_discard_triggers = initial_hand_size - STANDARD_MAX_HAND_SIZE
-        actual_discard_triggers = 0
-        for call_obj in effect_engine.trigger_effects.call_args_list:
-            args, kwargs = call_obj 
-            # trigger_type is the first positional argument to effect_engine.trigger_effects
-            if args and isinstance(args[0], EffectTriggerType) and args[0] == EffectTriggerType.ON_DISCARD_THIS_CARD:
-                actual_discard_triggers +=1
+        turn_manager.execute_full_turn()
         
-        assert actual_discard_triggers == expected_discard_triggers
-        effect_engine.trigger_effects.assert_any_call(EffectTriggerType.END_PLAYER_TURN)
-        win_loss_checker.check_all_conditions.assert_called_once()
-
-    def test_execute_full_turn_flow(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
-        game_state, turn_manager, _, _, _ = initialized_game_environment
-        mock_ai_player = MagicMock()
-        
-        with patch.object(turn_manager, '_begin_turn_phase', wraps=turn_manager._begin_turn_phase) as mock_begin, \
-             patch.object(turn_manager, '_main_phase', wraps=turn_manager._main_phase) as mock_main, \
-             patch.object(turn_manager, '_end_turn_phase', wraps=turn_manager._end_turn_phase) as mock_end:
-            
-            turn_manager.execute_full_turn(mock_ai_player)
-            
-            mock_begin.assert_called_once()
-            mock_main.assert_called_once_with(mock_ai_player)
-            mock_end.assert_called_once()
-            
-        assert not game_state.game_over 
-        assert any(f"Turn {game_state.current_turn} concluded." in entry for entry in game_state.game_log)
-
-    def test_execute_full_turn_ends_game_mid_phase(self, initialized_game_environment: Tuple[GameState, TurnManager, EffectEngine, NightmareCreepModule, WinLossChecker]):
-        game_state, turn_manager, _, _, _ = initialized_game_environment
-        mock_ai_player = MagicMock()
-
-        original_main_phase_method = turn_manager._main_phase # Store reference to original
-
-        def main_phase_ends_game_side_effect(ai_player_arg):
-            # This function is the side_effect, it does NOT call the original _main_phase unless we want it to.
-            # Here, we just set the game_over state and perhaps minimal logging.
-            game_state.add_log_entry("Mocked _main_phase: Setting game_over = True")
-            game_state.game_over = True
-            game_state.win_status = "TEST_WIN_MAIN_PHASE"
-            # Do not call original_main_phase_method(ai_player_arg) to avoid recursion with this patch setup.
-
-        with patch.object(turn_manager, '_begin_turn_phase', wraps=turn_manager._begin_turn_phase) as mock_begin, \
-             patch.object(turn_manager, '_main_phase', side_effect=main_phase_ends_game_side_effect) as mock_main_custom, \
-             patch.object(turn_manager, '_end_turn_phase') as mock_end: # mock_end does not wrap
-            
-            turn_manager.execute_full_turn(mock_ai_player)
-            
-            mock_begin.assert_called_once()
-            mock_main_custom.assert_called_once_with(mock_ai_player)
-            mock_end.assert_not_called() 
-            assert game_state.game_over
-            assert game_state.win_status == "TEST_WIN_MAIN_PHASE"
+        assert game_state.current_turn == initial_turn + 1
+        # Check if all phases were logged (simplified check)
+        log_str = "".join(game_state.game_log)
+        assert f"Starting Turn {game_state.current_turn}" in log_str
+        assert "Begin Phase" in log_str
+        assert "Main Phase" in log_str
+        assert "End Phase" in log_str

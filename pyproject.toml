@@ -3,12 +3,10 @@ name = "tuck_in_terrors_sim"
 version = "0.1.0"
 description = "Monte Carlo simulator for the Tuck'd-In Terrors card game."
 readme = "README.md"
-requires-python = ">=3.8" # Specify your Python version requirement
+requires-python = ">=3.8"
 
 dependencies = [
-    # Add dependencies here later, e.g.,
-    # "pydantic",
-    # "numpy",
+    "pydantic>=2.0", # Ensure Pydantic is listed
 ]
 
 [project.optional-dependencies]
@@ -18,16 +16,21 @@ dev = [
 ]
 
 [project.scripts]
-# Example: run-sim = "tuck_in_terrors_sim.main:main_cli" # If you structure main.py for this
+# Example: run-sim = "tuck_in_terrors_sim.main:main_cli"
+
+# Build system configuration (using Setuptools)
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+# Tell Setuptools where to find your package
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = [
-  "src" # Allows pytest to find modules in src/tuck_in_terrors_sim
+  "src" 
 ]
 testpaths = [
     "tests",
 ]
-
-# Placeholder for uv specific configurations if they arise
-# [tool.uv]
-# Add other sections as needed, e.g., for linters or formatters

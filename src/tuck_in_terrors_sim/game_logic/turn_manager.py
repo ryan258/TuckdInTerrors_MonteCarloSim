@@ -1,228 +1,260 @@
 # src/tuck_in_terrors_sim/game_logic/turn_manager.py
 # Manages turn phases (begin, main, end) and turn progression
 
-import random # random is used for hand size discard, not directly for AI here
+import random
 from typing import TYPE_CHECKING, Optional
 
-if TYPE_CHECKING: # To avoid circular imports for type hinting
-    from .game_state import GameState
+if TYPE_CHECKING: 
+    from .game_state import GameState, PlayerState # Added PlayerState
     from ..ai.ai_player_base import AIPlayerBase
     from .effect_engine import EffectEngine
     from .nightmare_creep import NightmareCreepModule
     from .win_loss_checker import WinLossChecker
-    from .action_resolver import ActionResolver # Added for type hint
-    from ..ai.action_generator import ActionGenerator # Added for type hint
+    from .action_resolver import ActionResolver 
+    from ..ai.action_generator import ActionGenerator 
 
-from ..game_elements.enums import TurnPhase, EffectTriggerType
+from ..game_elements.enums import TurnPhase, EffectTriggerType, Zone # Added Zone
+from ..game_elements.card import CardInstance # Added CardInstance for type hinting
 # Import necessary classes for instantiation
-from .action_resolver import ActionResolver
-from ..ai.action_generator import ActionGenerator
+from .action_resolver import ActionResolver # Ensure this is imported for use
+from ..ai.action_generator import ActionGenerator # Ensure this is imported for use
 
 
 # Constants
-STANDARD_MANA_GAIN_PER_TURN_BASE = 1
+STANDARD_MANA_GAIN_PER_TURN_BASE = 1 # Default mana gain if not turn 0 and not overridden
 STANDARD_CARDS_TO_DRAW_PER_TURN = 1
 STANDARD_MAX_HAND_SIZE = 7
 
 class TurnManager:
     def __init__(self,
                  game_state: 'GameState',
+                 action_resolver: 'ActionResolver', # Added action_resolver
                  effect_engine: 'EffectEngine',
                  nightmare_module: 'NightmareCreepModule',
                  win_loss_checker: 'WinLossChecker'
-                 # ActionResolver and ActionGenerator will be instantiated per turn or as needed,
-                 # as they are primarily used within the AI's turn context.
-                 # Alternatively, they could be passed in if they held significant state
-                 # or were expensive to create, but for now, let's create them on demand.
                  ):
         self.game_state = game_state
+        self.action_resolver = action_resolver # Store action_resolver
         self.effect_engine = effect_engine
         self.nightmare_module = nightmare_module
         self.win_loss_checker = win_loss_checker
-        # We will instantiate ActionResolver and ActionGenerator in _main_phase
+        # ActionGenerator can still be instantiated on demand in _main_phase if it's stateless
+        self.action_generator = ActionGenerator()
+
 
     def _begin_turn_phase(self):
         gs = self.game_state
+        active_player = gs.get_active_player_state()
+        if not active_player:
+            gs.add_log_entry("Begin Turn: No active player!", level="ERROR"); return
+
         gs.current_phase = TurnPhase.BEGIN_TURN
-        gs.add_log_entry(f"Beginning Turn {gs.current_turn} - {gs.current_phase.name}.")
+        gs.add_log_entry(f"Turn {gs.current_turn} - Begin Phase (Player {active_player.player_id}).")
 
-        # Untap cards, update turn counters, reset turn flags
-        for card_in_play_instance_id in list(gs.cards_in_play.keys()): # Iterate over a copy of keys
-            card_instance = gs.cards_in_play.get(card_in_play_instance_id)
-            if card_instance:
-                if card_instance.is_tapped:
-                    card_instance.untap()
-                    gs.add_log_entry(f"Untapped '{card_instance.card_definition.name}' (Instance: {card_instance.instance_id}).")
-                card_instance.turns_in_play += 1
-                card_instance.effects_active_this_turn.clear()
-        gs.add_log_entry("All cards in play untapped and turn counters updated.")
-
-        gs.free_toy_played_this_turn = False
-        gs.storm_count_this_turn = 0
-        gs.nightmare_creep_effect_applied_this_turn = False # Ensure this is reset
-        gs.add_log_entry("Turn-specific flags reset.")
-
-        # Mana gain
-        # (Assuming objective-specific first turn mana is handled by game_setup setting initial mana_pool)
-        if not (gs.current_objective.setup_instructions and \
-           gs.current_objective.setup_instructions.component_type == "CUSTOM_GAME_SETUP" and \
-           "first_turn_mana_override" in gs.current_objective.setup_instructions.params and \
-           gs.current_turn == 1):
-            mana_to_gain = gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE
-            gs.mana_pool += mana_to_gain
-            gs.add_log_entry(f"Gained {mana_to_gain} mana. Total mana: {gs.mana_pool}.")
-        else:
-            gs.add_log_entry(f"Mana for Turn 1 is {gs.mana_pool} (pre-set by objective).")
+        # Untap cards
+        for card_instance in list(gs.cards_in_play.values()): # Iterate copy
+            if card_instance.controller_id == active_player.player_id and card_instance.is_tapped:
+                card_instance.untap()
+                gs.add_log_entry(f"Untapped '{card_instance.definition.name}' ({card_instance.instance_id}).")
+        
+        # Update turns_in_play for cards controlled by active player (optional, rules dependent)
+        # Reset effects_applied_this_turn for cards controlled by active player
+        for card_instance in gs.cards_in_play.values():
+            if card_instance.controller_id == active_player.player_id:
+                if card_instance.turn_entered_play is not None: # Only if it has been in play
+                    # This logic might be complex depending on how "turns in play" is defined
+                    # For simplicity, we can assume it's just a counter for now or handled elsewhere
+                    pass 
+                card_instance.effects_applied_this_turn.clear()
 
 
-        # Draw cards
-        cards_to_draw = STANDARD_CARDS_TO_DRAW_PER_TURN # Can be modified by effects later
-        for i in range(cards_to_draw):
-            if not gs.deck:
-                gs.add_log_entry("Cannot draw card: Deck is empty.", level="WARNING")
-                break
-            drawn_card = gs.deck.pop(0)
-            gs.hand.append(drawn_card)
-            gs.add_log_entry(f"Drew card: {drawn_card.name}. Hand size: {len(gs.hand)}.")
-            self.effect_engine.trigger_effects(
-                trigger_type=EffectTriggerType.WHEN_CARD_DRAWN,
-                event_context={'drawn_card_definition': drawn_card}
-            )
-        if not gs.deck and cards_to_draw > 0 and i < cards_to_draw -1:
-             gs.add_log_entry("Deck became empty during draw phase.", level="WARNING")
+        active_player.has_played_free_toy_this_turn = False
+        # gs.storm_count_this_turn = 0 # Storm count might be player specific or global
+        gs.nightmare_creep_effect_applied_this_turn = False
+        gs.nightmare_creep_skipped_this_turn = False
+
+
+        # Mana gain - objectives can override first turn mana via game_setup
+        # Standard gain: current_turn number (e.g. turn 1 = 1 mana, turn 2 = 2 mana etc.)
+        # Let's assume mana is set to current_turn unless overridden
+        mana_this_turn = gs.current_turn 
+        is_first_turn_mana_override = False
+        if gs.current_turn == 1 and gs.current_objective.setup_instructions:
+            setup_params = gs.current_objective.setup_instructions.params
+            if "first_turn_mana_override" in setup_params:
+                # This mana should have been set during game_setup on PlayerState
+                # This block is more of a check/log if mana was indeed overridden
+                mana_this_turn = active_player.mana # Use pre-set mana
+                is_first_turn_mana_override = True
+                gs.add_log_entry(f"Mana for Turn 1 is {active_player.mana} (pre-set by objective).")
+        
+        if not is_first_turn_mana_override:
+            active_player.mana = mana_this_turn # Set mana to current turn number
+            gs.add_log_entry(f"Player {active_player.player_id} sets mana to {active_player.mana} for turn {gs.current_turn}.")
+
+
+        # Draw card
+        gs.add_log_entry(f"Player {active_player.player_id} attempts to draw {STANDARD_CARDS_TO_DRAW_PER_TURN} card(s).")
+        drawn_cards = active_player.draw_cards(STANDARD_CARDS_TO_DRAW_PER_TURN, gs)
+        
+        # Handle "WHEN_CARD_DRAWN" triggers (simplified, a real event system would be better)
+        # for drawn_card_inst in drawn_cards:
+        #     if drawn_card_inst.definition.effects:
+        #         for effect_obj in drawn_card_inst.definition.effects:
+        #             if effect_obj.trigger == EffectTriggerType.WHEN_CARD_DRAWN: # This trigger type isn't on Effect itself
+        #                 # This needs a global trigger check or specific card ability
+        #                 pass
+        # A general WHEN_CARD_DRAWN event for other cards to react to:
+        # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.WHEN_CARD_DRAWN, gs, active_player, {'drawn_cards': drawn_cards})
 
 
         # Nightmare Creep
-        gs.add_log_entry("Checking for Nightmare Creep activation...")
-        # nightmare_creep_effect_applied_this_turn is set within apply_nightmare_creep_for_current_turn
         if self.nightmare_module.apply_nightmare_creep_for_current_turn():
-            # Log entry for application is handled within the module
-            gs.add_log_entry("Objective's Nightmare Creep processed. Triggering card reactions to NC event.")
-            # This trigger is for cards reacting to the player being affected by NC
-            self.effect_engine.trigger_effects(EffectTriggerType.WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER)
+            # This would trigger WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER
+            # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER, gs, active_player)
+            pass # Logging is inside apply_nightmare_creep_for_current_turn
         else:
-            gs.add_log_entry("Nightmare Creep not scheduled or applicable this turn.")
+            gs.add_log_entry("Nightmare Creep not active or skipped this turn.")
 
         # Begin player turn effects
-        gs.add_log_entry("Resolving 'beginning of player turn' effects...")
-        self.effect_engine.trigger_effects(EffectTriggerType.BEGIN_PLAYER_TURN)
+        # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.BEGIN_PLAYER_TURN, gs, active_player)
 
 
-    def _main_phase(self, ai_player: 'AIPlayerBase'):
+    def _main_phase(self): # AI player is now fetched from game_state
         gs = self.game_state
+        active_player = gs.get_active_player_state()
+        ai_agent = gs.get_active_player_agent()
+
+        if not active_player or not ai_agent:
+            gs.add_log_entry("Main Phase: No active player or AI agent.", level="ERROR"); return
+
         gs.current_phase = TurnPhase.MAIN_PHASE
-        gs.add_log_entry(f"Beginning {gs.current_phase.name} for {ai_player.player_name if ai_player else 'N/A'}.")
+        gs.add_log_entry(f"Main Phase - Player {active_player.player_id} (AI: {type(ai_agent).__name__}).")
 
-        if ai_player:
-            # Instantiate ActionResolver and ActionGenerator for this AI's turn
-            action_resolver = ActionResolver(gs, self.effect_engine)
-            action_generator = ActionGenerator() # ActionGenerator is stateless for now
+        # AI makes decisions until it passes
+        max_actions_per_turn = 20 # Safety break for loops
+        actions_taken_this_phase = 0
+        while actions_taken_this_phase < max_actions_per_turn:
+            if gs.game_over: break
 
-            gs.add_log_entry(f"AI Player ({ai_player.player_name}) taking actions...")
-            ai_player.take_turn_actions(gs, action_resolver, action_generator)
-            gs.add_log_entry(f"AI Player ({ai_player.player_name}) finished actions for main phase.")
-        else:
-            gs.add_log_entry("No AI player provided for main phase. Main phase skipped.", level="WARNING")
+            possible_actions = self.action_generator.get_valid_actions(gs)
+            if not possible_actions: # Should at least have PASS_TURN
+                gs.add_log_entry("No possible actions available (not even PASS). Ending main phase.", level="WARNING")
+                break
 
-        gs.add_log_entry(f"Main phase ended.")
+            chosen_game_action = ai_agent.decide_action(gs, possible_actions)
+
+            if not chosen_game_action or chosen_game_action.type == "PASS_TURN":
+                gs.add_log_entry(f"Player {active_player.player_id} chose to PASS turn or no action taken.")
+                break 
+            
+            gs.add_log_entry(f"Player {active_player.player_id} attempts action: {chosen_game_action.type} - {chosen_game_action.description}", level="ACTION")
+            
+            # Resolve the chosen action using ActionResolver
+            success = False
+            if chosen_game_action.type == "PLAY_CARD":
+                success = self.action_resolver.play_card(
+                    card_instance_id_in_hand=chosen_game_action.params.get("card_id"),
+                    is_free_toy_play=chosen_game_action.params.get("is_free_toy_play", False)
+                    # targets param might be needed if ActionGenerator includes target pre-selection
+                )
+            elif chosen_game_action.type == "ACTIVATE_ABILITY":
+                success = self.action_resolver.activate_ability(
+                    card_instance_id=chosen_game_action.params.get("card_instance_id"),
+                    effect_index=chosen_game_action.params.get("effect_index")
+                    # targets param might be needed
+                )
+            
+            if success:
+                gs.add_log_entry(f"Action {chosen_game_action.type} resolved successfully.", "ACTION_SUCCESS")
+            else:
+                gs.add_log_entry(f"Action {chosen_game_action.type} FAILED to resolve.", "ACTION_FAIL")
+                # If an action fails, AI might loop; consider breaking or different AI logic
+                # For now, we continue to see if AI tries something else or passes.
+
+            actions_taken_this_phase += 1
+            if actions_taken_this_phase >= max_actions_per_turn:
+                gs.add_log_entry("Reached max actions for main phase.", level="WARNING")
+                break
+        
+        gs.add_log_entry(f"Main phase ended for Player {active_player.player_id}.")
 
 
     def _end_turn_phase(self):
         gs = self.game_state
-        gs.current_phase = TurnPhase.END_TURN
-        gs.add_log_entry(f"Beginning {gs.current_phase.name}.")
+        active_player = gs.get_active_player_state()
+        if not active_player:
+            gs.add_log_entry("End Turn: No active player!", level="ERROR"); return
 
-        gs.add_log_entry("Resolving 'end of player turn' effects...")
-        self.effect_engine.trigger_effects(EffectTriggerType.END_PLAYER_TURN)
+        gs.current_phase = TurnPhase.END_TURN
+        gs.add_log_entry(f"End Phase - Player {active_player.player_id}.")
+
+        # End player turn effects
+        # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.END_PLAYER_TURN, gs, active_player)
 
         # Lose unspent mana
-        if gs.mana_pool > 0:
-            gs.add_log_entry(f"Losing {gs.mana_pool} unspent mana.")
-            gs.mana_pool = 0
-        else:
-            gs.add_log_entry("No unspent mana to lose.")
-
+        if active_player.mana > 0:
+            gs.add_log_entry(f"Player {active_player.player_id} loses {active_player.mana} unspent mana.")
+            active_player.mana = 0
+        
         # Discard down to max hand size
-        # Max hand size can be modified by objective special rules
-        current_max_hand_size = STANDARD_MAX_HAND_SIZE
-        if gs.current_objective and gs.current_objective.special_rules_text:
-            for rule_text in gs.current_objective.special_rules_text:
-                rule_text_lower = rule_text.lower()
-                if "hand size limit:" in rule_text_lower:
-                    try:
-                        # Example: "Hand size limit: 4 (...)"
-                        limit_str = rule_text_lower.split("hand size limit:")[1].strip().split(" ")[0]
-                        current_max_hand_size = int(limit_str)
-                        gs.add_log_entry(f"Applying special rule: Max hand size is {current_max_hand_size}.")
-                        break # Assuming only one such rule
-                    except (ValueError, IndexError) as e:
-                        gs.add_log_entry(f"Could not parse hand size limit from rule: '{rule_text}'. Error: {e}", level="WARNING")
-
-
-        if len(gs.hand) > current_max_hand_size:
-            num_to_discard = len(gs.hand) - current_max_hand_size
-            gs.add_log_entry(f"Hand size ({len(gs.hand)}) exceeds max ({current_max_hand_size}). Player must discard {num_to_discard} card(s).")
-            # For now, AI discards randomly. A real AI might make smarter choices.
-            # Or, this could become a PLAYER_CHOICE if we want the AI to pick.
-            # For simplicity in a random AI context, random discard is fine.
+        current_max_hand_size = STANDARD_MAX_HAND_SIZE # TODO: Allow objective to modify this
+        
+        if len(active_player.zones[Zone.HAND]) > current_max_hand_size:
+            num_to_discard = len(active_player.zones[Zone.HAND]) - current_max_hand_size
+            gs.add_log_entry(f"Hand size ({len(active_player.zones[Zone.HAND])}) exceeds max ({current_max_hand_size}). Player {active_player.player_id} must discard {num_to_discard}.")
+            
+            # TODO: Implement Player Choice for discard, or AI choice.
+            # For now, simplistic random discard of CardInstance objects.
             for _ in range(num_to_discard):
-                if not gs.hand: break # Should not happen if num_to_discard > 0
-                # Simplistic: discard last card (could be random for a more robust random AI)
-                # For a simulation, deterministic discard (e.g., last card) might be better than random.
-                # Let's make it random from hand for a bit more realism for now.
-                discarded_card = gs.hand.pop(random.randrange(len(gs.hand)))
-                gs.discard_pile.append(discarded_card)
-                gs.add_log_entry(f"Discarded '{discarded_card.name}' due to hand size limit.")
-                self.effect_engine.trigger_effects(
-                    EffectTriggerType.ON_DISCARD_THIS_CARD,
-                    source_card_definition_for_trigger=discarded_card,
-                    event_context={'discarded_card_definition': discarded_card, 'reason': 'HAND_SIZE'}
-                )
-            gs.add_log_entry(f"Hand size after discard: {len(gs.hand)}.")
+                if not active_player.zones[Zone.HAND]: break
+                
+                # For AI to choose:
+                # chosen_card_to_discard_id = ai_agent.choose_cards_to_discard(gs, 1)[0]
+                # chosen_card_instance = gs.get_card_instance(chosen_card_to_discard_id)
+                # if chosen_card_instance in active_player.zones[Zone.HAND]:
+                #    gs.move_card_zone(chosen_card_instance, Zone.DISCARD, active_player.player_id)
+                # else: # Fallback if AI choice fails or is not implemented
+                
+                # Fallback: random discard
+                discard_idx = random.randrange(len(active_player.zones[Zone.HAND]))
+                discarded_instance = active_player.zones[Zone.HAND].pop(discard_idx)
+                gs.move_card_zone(discarded_instance, Zone.DISCARD, active_player.player_id) # This handles logging
+                gs.add_log_entry(f"Player {active_player.player_id} discarded '{discarded_instance.definition.name}' due to hand size.")
+                # Trigger ON_DISCARD_THIS_CARD for the discarded_instance.definition
+                # for effect_obj in discarded_instance.definition.effects:
+                #    if effect_obj.trigger == EffectTriggerType.ON_DISCARD_THIS_CARD:
+                #        self.effect_engine.resolve_effect(effect_obj, gs, active_player, discarded_instance, 
+                #                                          {'reason': 'HAND_SIZE', 'discarded_card_instance_id': discarded_instance.instance_id})
+
 
         # Check win/loss conditions
-        gs.add_log_entry("Checking win/loss conditions at end of turn...")
-        if self.win_loss_checker.check_all_conditions(): # This updates gs.game_over and gs.win_status
-            gs.add_log_entry(f"Game end condition met. Status: {gs.win_status}", level="GAME_END")
+        if self.win_loss_checker.check_all_conditions(): # This updates gs.game_over
+            gs.add_log_entry(f"Game end condition met. Status: {gs.win_status or 'Unknown'}", level="GAME_END")
         
-        gs.add_log_entry(f"End of Turn {gs.current_turn} phase complete.")
+        gs.add_log_entry(f"End of Turn {gs.current_turn} for Player {active_player.player_id}.")
 
 
-    def execute_full_turn(self, ai_player: 'AIPlayerBase'):
+    def execute_full_turn(self): # AI player is now fetched from game_state
         if self.game_state.game_over:
-            self.game_state.add_log_entry("Attempted to execute turn, but game is already over.", level="WARNING")
+            self.game_state.add_log_entry("Attempted turn, but game already over.", level="WARNING")
             return
 
-        # Increment turn *before* begin_turn_phase so logs/rules for "Turn X" are correct
         self.game_state.current_turn += 1
         self.game_state.add_log_entry(f"--- Starting Turn {self.game_state.current_turn} ---", level="INFO_TURN_SEPARATOR")
 
-
         self._begin_turn_phase()
-        if self.game_state.game_over:
-            log_status = self.game_state.win_status or "Unknown reason"
-            self.game_state.add_log_entry(f"Game ended during Begin Turn Phase of Turn {self.game_state.current_turn}. Status: {log_status}", level="GAME_END")
-            return
+        if self.game_state.game_over: return
 
-        # Main Phase
-        self._main_phase(ai_player)
-        if self.game_state.game_over:
-            log_status = self.game_state.win_status or "Unknown reason"
-            self.game_state.add_log_entry(f"Game ended during Main Phase of Turn {self.game_state.current_turn}. Status: {log_status}", level="GAME_END")
-            return
+        self._main_phase() # Uses active_player from game_state
+        if self.game_state.game_over: return
         
-        # End Phase (Win/loss check is also here)
         self._end_turn_phase()
-        # game_state.game_over might have been set in _end_turn_phase by win_loss_checker
         
-        if self.game_state.game_over:
-             if self.game_state.win_status: # win_status should be set if game_over is True from win_loss_checker
-                 self.game_state.add_log_entry(f"Game concluded at end of Turn {self.game_state.current_turn}. Final Status: {self.game_state.win_status}", level="GAME_END")
-             else: # Should ideally not happen if win_loss_checker is robust
-                 self.game_state.add_log_entry(f"Game ended at end of Turn {self.game_state.current_turn}, but win_status is not set. Check logic.", level="ERROR")
-        else:
-            self.game_state.add_log_entry(f"Turn {self.game_state.current_turn} concluded. Ready for next turn.")
-
+        if self.game_state.game_over and self.game_state.win_status:
+             self.game_state.add_log_entry(f"Game concluded EOT {self.game_state.current_turn}. Final Status: {self.game_state.win_status}", level="GAME_END")
+        elif not self.game_state.game_over:
+             self.game_state.add_log_entry(f"Turn {self.game_state.current_turn} complete. Ready for next.")
 
 if __name__ == '__main__':
     print("TurnManager module: Manages the phases and progression of a game turn.")

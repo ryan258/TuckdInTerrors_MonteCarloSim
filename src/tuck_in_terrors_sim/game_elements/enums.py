@@ -174,11 +174,20 @@ class PlayerChoiceType(Enum):
     CHOOSE_CARD_FROM_HAND = auto()
     CHOOSE_CARD_FROM_DISCARD = auto()
     CHOOSE_CARD_IN_PLAY = auto()                # General choice of a card in play
-    CHOOSE_TARGET_CARD_IN_PLAY = auto()         # For effects that need a target
-
-    # Specific Game Action Choices
-    DISCARD_CARD_OR_SACRIFICE_SPIRIT = auto()   # Common NC choice
-    CHOOSE_TOY_TO_SACRIFICE = auto()
+    CHOOSE_TARGET_CARD_IN_PLAY = auto()         # For effects that need a target (e.g., choose a Toy, card in discard)
+    CHOOSE_TOY_TO_SACRIFICE = auto()            # Specific for sacrificing a toy
     CHOOSE_TOY_TO_SACRIFICE_OPTIONAL = auto()   # Option to not sacrifice if "may"
+
+    # Game Action Choices
+    DISCARD_CARD_OR_SACRIFICE_SPIRIT = auto()   # Common NC choice
+    
+    # Organization / Ordering
+    ORDER_CARDS = auto()                        # E.g., for "Browse deck and reorder"
+
+    # Resource Allocation
+    DISTRIBUTE_RESOURCES = auto()               # E.g., distribute N counters among M targets
+
+    # Meta / Control Flow
+    CHOOSE_MODE = auto()                        # For modal spells/effects: "Choose one - ...; or Choose one - ..."
     CHOOSE_YES_NO_PAY_COST = auto()             # Yes/No choice that also involves paying a cost if "Yes"
     CHOOSE_CARD_FROM_ZONE_FILTERED = auto()     # Generic, params: zone, card_filter, purpose_text

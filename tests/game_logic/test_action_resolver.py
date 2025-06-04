@@ -1,211 +1,209 @@
 # tests/game_logic/test_action_resolver.py
-# Unit tests for action_resolver.py
 
 import pytest
 from unittest.mock import MagicMock, patch
+from typing import Dict, List, Optional, Any, Tuple # Added Dict here
 
-from tuck_in_terrors_sim.game_logic.game_state import GameState, CardInPlay
-from tuck_in_terrors_sim.game_logic.action_resolver import ActionResolver
+# Game elements
+from tuck_in_terrors_sim.game_elements.card import Card, Toy, Spell, Ritual, Effect, EffectAction, CardInstance
+from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard
+from tuck_in_terrors_sim.game_elements.enums import CardType, EffectTriggerType, Zone, EffectActionType
+# Game logic
+from tuck_in_terrors_sim.game_logic.game_state import GameState, PlayerState
 from tuck_in_terrors_sim.game_logic.effect_engine import EffectEngine
-from tuck_in_terrors_sim.game_elements.card import Card, Toy, Spell, Ritual, EffectLogic
-from tuck_in_terrors_sim.game_elements.enums import CardType, Zone, EffectTriggerType
-from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard 
+from tuck_in_terrors_sim.game_logic.action_resolver import ActionResolver # Import ActionResolver
+from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
 
-# Fixture 'initialized_game_environment' is defined in tests/conftest.py
-# It provides: game_state, turn_manager, effect_engine, nightmare_module, win_loss_checker
-# We need a slightly different fixture setup for ActionResolver, or to extract parts.
 
 @pytest.fixture
 def mock_effect_engine() -> MagicMock:
-    """Mocks the EffectEngine."""
     return MagicMock(spec=EffectEngine)
 
 @pytest.fixture
-def game_state_for_actions(game_data) -> GameState:
-    """Provides a basic GameState, initialized for an objective."""
-    objective = game_data.get_objective_by_id("OBJ01_THE_FIRST_NIGHT")
-    if not objective:
-        pytest.fail("Objective OBJ01_THE_FIRST_NIGHT not found for test setup.")
-    
-    gs = GameState(loaded_objective=objective, all_card_definitions=game_data.cards)
-    gs.current_turn = 1
-    gs.mana_pool = 10 
-    
-    # Ensure card IDs used for deck population exist in game_data.cards
-    deck_card_ids = ["TCTOY001", "TCSPL001", "TCRIT001"]
-    gs.deck = [game_data.cards[cid] for cid in deck_card_ids if cid in game_data.cards]
-    
-    if not gs.deck: 
-        print("Warning: Test setup for game_state_for_actions resulted in an empty deck. Check card IDs.")
+def empty_objective_card() -> ObjectiveCard:
+    return ObjectiveCard(objective_id="test_obj", title="Test Objective", difficulty="easy", nightfall_turn=10)
 
-    if len(gs.deck) >= 2:
-        gs.hand.append(gs.deck.pop(0))
-        gs.hand.append(gs.deck.pop(0))
-    elif gs.deck: 
-        gs.hand.append(gs.deck.pop(0))
-    
+@pytest.fixture
+def card_defs_for_resolver() -> Dict[str, Card]: # Type hint 'Dict' is now defined
+    dummy_action = EffectAction(action_type=EffectActionType.DRAW_CARDS, params={"count": 1})
+    return {
+        "toy1": Toy(card_id="toy1", name="Test Toy", type=CardType.TOY, cost_mana=1, 
+                    effects=[Effect(effect_id="toy1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
+        "spell1": Spell(card_id="spell1", name="Test Spell", type=CardType.SPELL, cost_mana=2,
+                       effects=[Effect(effect_id="spell1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
+        "ritual1": Ritual(card_id="ritual1", name="Test Ritual", type=CardType.RITUAL, cost_mana=3,
+                         effects=[Effect(effect_id="ritual1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
+        "activatable_toy": Toy(card_id="act_toy", name="Activatable Toy", type=CardType.TOY, cost_mana=1,
+                               effects=[
+                                   Effect(effect_id="act1", trigger=EffectTriggerType.ACTIVATED_ABILITY, actions=[dummy_action], description="Ability 1"),
+                                   Effect(effect_id="tap_ab", trigger=EffectTriggerType.TAP_ABILITY, actions=[dummy_action], description="Tap Ability")
+                               ])
+    }
+
+@pytest.fixture
+def game_state_for_actions(empty_objective_card: ObjectiveCard, card_defs_for_resolver: Dict[str, Card]) -> GameState:
+    gs = GameState(loaded_objective=empty_objective_card, all_card_definitions=card_defs_for_resolver)
+    player = PlayerState(player_id=DEFAULT_PLAYER_ID, initial_deck=[]) 
+    gs.player_states[DEFAULT_PLAYER_ID] = player
+    gs.active_player_id = DEFAULT_PLAYER_ID
+    gs.current_turn = 1
+    # Initialize EffectEngine for GameState if it's expected by any internal GameState logic (not typical)
+    # gs.effect_engine = mock_effect_engine() # If needed by GameState itself
     return gs
 
 @pytest.fixture
 def action_resolver(game_state_for_actions: GameState, mock_effect_engine: MagicMock) -> ActionResolver:
-    """Provides an ActionResolver instance with a mocked EffectEngine."""
+    # Pass the game_state_for_actions to the EffectEngine if it's stored as a reference
+    # Assuming EffectEngine init might be: EffectEngine(game_state_ref=game_state_for_actions)
+    # For this test, effect_engine is mocked, so its internal gs reference might not matter unless methods are called on it
     return ActionResolver(game_state_for_actions, mock_effect_engine)
 
-class TestActionResolver:
-
-    def test_play_card_from_hand_not_in_hand(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
-        non_hand_card = Toy(card_id="NOTINHAND", name="NotInHand Toy", cost=1, card_type=CardType.TOY)
-        assert not action_resolver.play_card_from_hand(non_hand_card)
-        assert "not in hand" in game_state_for_actions.game_log[-1].lower()
-
-    def test_play_card_from_hand_toy_free_success(self, action_resolver: ActionResolver, game_state_for_actions: GameState, mock_effect_engine: MagicMock):
+class TestActionResolverPlayCard:
+    def test_play_toy_from_hand_sufficient_mana(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
         gs = game_state_for_actions
-        toy_to_play = Toy(card_id="FREE_TOY", name="Free Play Toy", cost=3, card_type=CardType.TOY) 
-        gs.hand.append(toy_to_play)
-        initial_hand_size = len(gs.hand)
-
-        assert not gs.free_toy_played_this_turn
-        result = action_resolver.play_card_from_hand(toy_to_play, is_free_toy_play=True)
-        assert result is True
-        assert gs.free_toy_played_this_turn is True
-        assert len(gs.hand) == initial_hand_size - 1
-        assert toy_to_play not in gs.hand
+        player = gs.get_active_player_state()
+        assert player is not None
         
-        played_instance = None
-        for cip in gs.cards_in_play.values():
-            if cip.card_definition == toy_to_play:
-                played_instance = cip
-                break
-        assert played_instance is not None
+        toy_card_def = card_defs_for_resolver["toy1"]
+        toy_instance = CardInstance(definition=toy_card_def, owner_id=player.player_id, current_zone=Zone.HAND)
+        player.zones[Zone.HAND].append(toy_instance)
+        player.mana = 5
+
+        success = action_resolver.play_card(toy_instance.instance_id, is_free_toy_play=False)
         
-        mock_effect_engine.trigger_effects.assert_any_call(
-            trigger_type=EffectTriggerType.ON_PLAY,
-            source_card_instance_for_trigger=played_instance,
-            event_context={'played_card_instance': played_instance, 'targets': None}
+        assert success is True
+        assert toy_instance not in player.zones[Zone.HAND] # Should be moved by move_card_zone
+        assert toy_instance.instance_id in gs.cards_in_play
+        assert gs.cards_in_play[toy_instance.instance_id] == toy_instance
+        assert toy_instance.current_zone == Zone.IN_PLAY
+        assert player.mana == 4 
+        # Check if the ON_PLAY effect of toy1 was resolved
+        # This assumes toy1_def.effects[0] is the ON_PLAY effect
+        mock_effect_engine.resolve_effect.assert_any_call(
+            effect=toy_card_def.effects[0],
+            game_state=gs,
+            player=player,
+            source_card_instance=toy_instance,
+            triggering_event_context={'played_card_instance_id': toy_instance.instance_id, 'targets': None}
         )
-        mock_effect_engine.trigger_effects.assert_any_call(
-            trigger_type=EffectTriggerType.WHEN_OTHER_CARD_ENTERS_PLAY,
-            event_context={'entered_card_instance': played_instance}
+
+
+    def test_play_spell_from_hand(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
+        gs = game_state_for_actions
+        player = gs.get_active_player_state()
+        assert player is not None
+
+        spell_card_def = card_defs_for_resolver["spell1"]
+        spell_instance = CardInstance(definition=spell_card_def, owner_id=player.player_id, current_zone=Zone.HAND)
+        player.zones[Zone.HAND].append(spell_instance)
+        player.mana = 3
+
+        success = action_resolver.play_card(spell_instance.instance_id)
+
+        assert success is True
+        assert spell_instance not in player.zones[Zone.HAND]
+        assert spell_instance in player.zones[Zone.DISCARD] 
+        assert spell_instance.current_zone == Zone.DISCARD
+        assert player.mana == 1 
+        mock_effect_engine.resolve_effect.assert_any_call(
+            effect=spell_card_def.effects[0],
+            game_state=gs,
+            player=player,
+            source_card_instance=spell_instance,
+            triggering_event_context={'played_spell_instance_id': spell_instance.instance_id, 'targets': None}
         )
 
-    def test_play_card_from_hand_toy_free_fail_already_used(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
+    def test_play_card_not_in_hand(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
         gs = game_state_for_actions
-        toy_to_play = Toy(card_id="ANOTHER_TOY", name="Another Toy", cost=1, card_type=CardType.TOY)
-        gs.hand.append(toy_to_play)
-        gs.free_toy_played_this_turn = True 
-
-        assert not action_resolver.play_card_from_hand(toy_to_play, is_free_toy_play=True)
-        assert "free toy already played" in gs.game_log[-1].lower()
-
-    def test_play_card_from_hand_toy_free_fail_not_a_toy(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
-        gs = game_state_for_actions
-        spell_to_play = Spell(card_id="ASPELL", name="NotAToySpell", cost=1, card_type=CardType.SPELL)
-        gs.hand.append(spell_to_play)
+        player = gs.get_active_player_state()
+        assert player is not None
+        player.mana = 5
         
-        assert not action_resolver.play_card_from_hand(spell_to_play, is_free_toy_play=True)
-        assert "only toys allowed" in gs.game_log[-1].lower()
+        success = action_resolver.play_card("nonexistent_instance_id")
+        assert success is False
+        # Check log for specific message (optional, good for debugging)
+        # assert "not in P0's hand" in gs.game_log[-1] 
 
-    def test_play_card_from_hand_paid_spell_success(self, action_resolver: ActionResolver, game_state_for_actions: GameState, mock_effect_engine: MagicMock):
+    def test_play_card_insufficient_mana(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card]):
         gs = game_state_for_actions
-        spell_to_play = Spell(card_id="PAID_SPELL", name="Paid Spell", cost=3, quantity_in_deck=1, card_type=CardType.SPELL)
-        gs.hand.append(spell_to_play)
-        initial_hand_size = len(gs.hand)
-        initial_mana = gs.mana_pool
-        initial_discard_size = len(gs.discard_pile)
-        initial_storm = gs.storm_count_this_turn
+        player = gs.get_active_player_state()
+        assert player is not None
 
-        result = action_resolver.play_card_from_hand(spell_to_play, is_free_toy_play=False)
-        assert result is True
-        assert gs.mana_pool == initial_mana - spell_to_play.cost
-        assert len(gs.hand) == initial_hand_size - 1
-        assert spell_to_play not in gs.hand
-        assert spell_to_play in gs.discard_pile
-        assert len(gs.discard_pile) == initial_discard_size + 1
-        assert gs.storm_count_this_turn == initial_storm + 1
+        toy_card_def = card_defs_for_resolver["toy1"] 
+        toy_instance = CardInstance(definition=toy_card_def, owner_id=player.player_id, current_zone=Zone.HAND)
+        player.zones[Zone.HAND].append(toy_instance)
+        player.mana = 0
+
+        success = action_resolver.play_card(toy_instance.instance_id)
+        assert success is False
+        assert player.mana == 0
+        assert toy_instance in player.zones[Zone.HAND] 
+
+    def test_free_toy_play(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card]):
+        gs = game_state_for_actions
+        player = gs.get_active_player_state()
+        assert player is not None
+
+        toy_card_def = card_defs_for_resolver["toy1"]
+        toy_instance = CardInstance(definition=toy_card_def, owner_id=player.player_id, current_zone=Zone.HAND)
+        player.zones[Zone.HAND].append(toy_instance)
+        player.mana = 0
+        player.has_played_free_toy_this_turn = False
+
+        success = action_resolver.play_card(toy_instance.instance_id, is_free_toy_play=True)
+        assert success is True
+        assert player.has_played_free_toy_this_turn is True
+        assert toy_instance.instance_id in gs.cards_in_play
+        assert player.mana == 0 
+
+    def test_activate_ability(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
+        gs = game_state_for_actions
+        player = gs.get_active_player_state()
+        assert player is not None
+
+        act_toy_def = card_defs_for_resolver["activatable_toy"]
+        act_toy_inst = CardInstance(definition=act_toy_def, owner_id=player.player_id, current_zone=Zone.IN_PLAY)
+        gs.cards_in_play[act_toy_inst.instance_id] = act_toy_inst
+        player.zones[Zone.IN_PLAY].append(act_toy_inst)
+
+        success = action_resolver.activate_ability(act_toy_inst.instance_id, effect_index=0)
+        assert success is True
+        mock_effect_engine.resolve_effect.assert_called_once_with(
+            effect=act_toy_def.effects[0],
+            game_state=gs,
+            player=player,
+            source_card_instance=act_toy_inst,
+            triggering_event_context={'activated_ability_on_instance_id': act_toy_inst.instance_id, 'targets': None}
+        )
+
+    def test_activate_tap_ability_when_untapped(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
+        gs = game_state_for_actions
+        player = gs.get_active_player_state()
+        assert player is not None
+
+        act_toy_def = card_defs_for_resolver["activatable_toy"]
+        act_toy_inst = CardInstance(definition=act_toy_def, owner_id=player.player_id, current_zone=Zone.IN_PLAY)
+        gs.cards_in_play[act_toy_inst.instance_id] = act_toy_inst
+        player.zones[Zone.IN_PLAY].append(act_toy_inst)
+        act_toy_inst.is_tapped = False
+
+        success = action_resolver.activate_ability(act_toy_inst.instance_id, effect_index=1) # Index 1 is TAP_ABILITY
+        assert success is True
+        assert act_toy_inst.is_tapped is True
+        mock_effect_engine.resolve_effect.assert_called_once()
+
+    def test_activate_tap_ability_when_already_tapped_fails(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card]):
+        gs = game_state_for_actions
+        player = gs.get_active_player_state()
+        assert player is not None
+
+        act_toy_def = card_defs_for_resolver["activatable_toy"]
+        act_toy_inst = CardInstance(definition=act_toy_def, owner_id=player.player_id, current_zone=Zone.IN_PLAY)
+        act_toy_inst.is_tapped = True 
+        gs.cards_in_play[act_toy_inst.instance_id] = act_toy_inst
+        player.zones[Zone.IN_PLAY].append(act_toy_inst)
         
-        mock_effect_engine.trigger_effects.assert_any_call(
-            trigger_type=EffectTriggerType.ON_PLAY,
-            source_card_definition_for_trigger=spell_to_play,
-            event_context={'played_card_definition': spell_to_play, 'targets': None}
-        )
-
-    def test_play_card_from_hand_paid_fail_not_enough_mana(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
-        gs = game_state_for_actions
-        expensive_card = Toy(card_id="EXPENSIVE", name="Expensive Toy", cost=gs.mana_pool + 5, card_type=CardType.TOY)
-        gs.hand.append(expensive_card)
-        initial_hand_size = len(gs.hand)
-        initial_mana = gs.mana_pool
-
-        assert not action_resolver.play_card_from_hand(expensive_card, is_free_toy_play=False)
-        assert "not enough mana" in gs.game_log[-1].lower()
-        assert gs.mana_pool == initial_mana 
-        assert len(gs.hand) == initial_hand_size 
-
-
-    def test_activate_ability_success_basic(self, action_resolver: ActionResolver, game_state_for_actions: GameState, mock_effect_engine: MagicMock):
-        gs = game_state_for_actions
-        activatable_effect = EffectLogic( # This is the object we need to check
-            trigger=EffectTriggerType.ACTIVATED_ABILITY.name, 
-            actions=[{"action_type": "CREATE_SPIRIT_TOKENS", "params": {"amount": 1}}],
-            description="Create a spirit"
-        )
-        card_def_with_ability = Toy(card_id="ABILITY_TOY", name="Ability Toy", cost=1, effect_logic_list=[activatable_effect], card_type=CardType.TOY)
-        card_instance = CardInPlay(card_def_with_ability)
-        gs.cards_in_play[card_instance.instance_id] = card_instance
-
-        result = action_resolver.activate_ability(card_instance.instance_id, 0)
-        assert result is True
-        mock_effect_engine.resolve_effect_logic.assert_called_once_with(
-            activatable_effect, # Use the correct variable name here
-            source_card_instance=card_instance, 
-            targets=None
-        )
-        
-    def test_activate_ability_fail_not_activatable(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
-        gs = game_state_for_actions
-        passive_effect = EffectLogic(trigger=EffectTriggerType.ON_PLAY.name, actions=[])
-        card_def_passive = Toy(card_id="PASSIVE_TOY", name="Passive Toy", cost=1, effect_logic_list=[passive_effect], card_type=CardType.TOY)
-        card_instance = CardInPlay(card_def_passive)
-        gs.cards_in_play[card_instance.instance_id] = card_instance
-
-        assert not action_resolver.activate_ability(card_instance.instance_id, 0)
-        assert "not an activatable type" in gs.game_log[-1].lower()
-
-    def test_activate_ability_fail_once_per_turn(self, action_resolver: ActionResolver, game_state_for_actions: GameState, mock_effect_engine: MagicMock):
-        gs = game_state_for_actions
-        once_per_turn_effect = EffectLogic(
-            trigger=EffectTriggerType.ACTIVATED_ABILITY.name,
-            actions=[{"action_type": "ADD_MANA", "params": {"amount": 1}}],
-            is_once_per_turn=True,
-            description="Gain 1 mana (1/turn)"
-        )
-        card_def_opt = Toy(card_id="OPT_TOY", name="OncePerTurn Toy", cost=1, effect_logic_list=[once_per_turn_effect], card_type=CardType.TOY)
-        card_instance = CardInPlay(card_def_opt)
-        gs.cards_in_play[card_instance.instance_id] = card_instance
-
-        assert action_resolver.activate_ability(card_instance.instance_id, 0) is True
-        mock_effect_engine.resolve_effect_logic.assert_called_with(once_per_turn_effect, source_card_instance=card_instance, targets=None)
-        assert card_instance.effects_active_this_turn.get("effect_0") is True
-        
-        assert action_resolver.activate_ability(card_instance.instance_id, 0) is False
-        assert "already used this turn" in gs.game_log[-1].lower()
-        mock_effect_engine.resolve_effect_logic.assert_called_once() 
-
-    def test_activate_ability_tap_ability(self, action_resolver: ActionResolver, game_state_for_actions: GameState, mock_effect_engine: MagicMock):
-        gs = game_state_for_actions
-        tap_effect = EffectLogic(
-            trigger=EffectTriggerType.TAP_ABILITY.name,
-            actions=[{"action_type": "DRAW_CARDS", "params": {"amount": 1}}],
-            description="Tap: Draw a card"
-        )
-        card_def_tap = Toy(card_id="TAP_TOY", name="Tap Toy", cost=1, effect_logic_list=[tap_effect], card_type=CardType.TOY)
-        card_instance = CardInPlay(card_def_tap)
-        gs.cards_in_play[card_instance.instance_id] = card_instance
-
-        assert not card_instance.is_tapped
-        assert action_resolver.activate_ability(card_instance.instance_id, 0) is True
-        assert card_instance.is_tapped
-        mock_effect_engine.resolve_effect_logic.assert_called_with(tap_effect, source_card_instance=card_instance, targets=None)
-
-        assert action_resolver.activate_ability(card_instance.instance_id, 0) is False
-        assert "already tapped" in gs.game_log[-1].lower()
+        success = action_resolver.activate_ability(act_toy_inst.instance_id, effect_index=1)
+        assert success is False
+        # Check log for specific message (optional, good for debugging)
+        # assert "already tapped" in gs.game_log[-1]

@@ -7,8 +7,9 @@ from typing import Dict
 from tuck_in_terrors_sim.game_elements.card import Card, Toy
 from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard, ObjectiveLogicComponent
 from tuck_in_terrors_sim.game_elements.enums import CardType, Zone, TurnPhase
-from tuck_in_terrors_sim.game_logic.game_state import GameState, CardInPlay
-
+from tuck_in_terrors_sim.game_logic.game_state import GameState
+# If the test needs CardInstance, add:
+# from tuck_in_terrors_sim.game_elements.card import CardInstance
 # --- Test Fixtures / Mock Data ---
 
 @pytest.fixture

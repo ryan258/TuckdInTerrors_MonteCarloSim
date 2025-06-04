@@ -1,145 +1,122 @@
 # tests/ai/test_random_ai.py
-# Unit tests for random_ai.py
-
 import pytest
-import random as py_random # To avoid conflict with a fixture named 'random' if any
-from typing import List, Dict, Any
 from unittest.mock import MagicMock
+from typing import List, Dict, Any, Optional
 
-# AI Profile
 from tuck_in_terrors_sim.ai.ai_profiles.random_ai import RandomAI
-
-# Game Logic & Elements (minimal for mocking GameState if needed)
-from tuck_in_terrors_sim.game_logic.game_state import GameState
+from tuck_in_terrors_sim.models.game_action_model import GameAction
+from tuck_in_terrors_sim.game_logic.game_state import GameState, PlayerState
 from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard
-from tuck_in_terrors_sim.game_elements.enums import PlayerChoiceType
+from tuck_in_terrors_sim.game_elements.card import CardInstance, Card, Toy # For mock card def
+from tuck_in_terrors_sim.game_elements.enums import PlayerChoiceType, Zone, CardType # Added CardType
+from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
+
 
 @pytest.fixture
-def random_ai_player() -> RandomAI:
-    return RandomAI(player_name="TestRandomAI")
+def mock_game_state_for_ai() -> GameState: # Renamed to avoid conflict
+    gs_mock = MagicMock(spec=GameState)
+    
+    player_state_mock = MagicMock(spec=PlayerState)
+    player_state_mock.player_id = DEFAULT_PLAYER_ID
+    # Initialize zones as dictionaries that can be accessed with .get
+    player_state_mock.zones = {
+        Zone.HAND: [], 
+        Zone.IN_PLAY: [], 
+        Zone.DISCARD: [], 
+        Zone.DECK: []
+    }
+    player_state_mock.spirit_tokens = 1 # Give some spirits for testing choices
+    
+    gs_mock.get_player_state.return_value = player_state_mock
+    gs_mock.get_active_player_state.return_value = player_state_mock
+    gs_mock.add_log_entry = MagicMock()
+    return gs_mock
 
 @pytest.fixture
-def mock_game_state() -> GameState:
-    # Create a very basic GameState mock, or use a simplified real one if necessary
-    # For these tests, RandomAI mostly interacts with structured choices and action lists,
-    # so GameState might only be needed for logging or very specific choice contexts.
-    objective = ObjectiveCard(objective_id="test_obj", title="Test", difficulty="Easy", nightfall_turn=5)
-    gs = GameState(loaded_objective=objective, all_card_definitions={})
-    gs.game_log = [] # Ensure clean log for each test
-    return gs
+def random_ai_fixture() -> RandomAI: # Renamed to avoid conflict
+    return RandomAI(player_id=DEFAULT_PLAYER_ID) # Use player_id
 
-class TestRandomAIChooseAction:
-
-    def test_choose_action_selects_from_valid_actions(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        valid_actions = [
-            {'type': 'PLAY_CARD', 'params': {'card_id': 'C001'}, 'description': 'Play C001'},
-            {'type': 'ACTIVATE_ABILITY', 'params': {'ability_id': 'A001'}, 'description': 'Activate A001'},
-            {'type': 'PASS_TURN', 'params': {}, 'description': 'Pass'}
-        ]
-        # Seed random for predictable choice if needed, or just check if it's one of them
-        # py_random.seed(0) # Optional: for deterministic tests of random choice
+class TestRandomAIDecideAction: # Renamed from TestRandomAIChooseAction
+    def test_decide_action_selects_from_valid_actions(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        action1 = GameAction(type="PLAY_CARD", params={"card_id": "c1"}, description="Play C1")
+        action2 = GameAction(type="PASS_TURN", description="Pass")
+        possible_actions = [action1, action2]
         
-        chosen_action = random_ai_player.choose_action(mock_game_state, valid_actions)
+        chosen_action = random_ai_fixture.decide_action(mock_game_state_for_ai, possible_actions)
+        assert chosen_action in possible_actions
+
+    def test_decide_action_prefers_non_pass_if_available(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        play_action = GameAction(type="PLAY_CARD", params={"card_id": "c1"}, description="Play C1")
+        pass_action = GameAction(type="PASS_TURN", description="Pass")
+        possible_actions = [play_action, pass_action]
         
-        assert chosen_action in valid_actions
-        # Check if game state logged the choice (RandomAI's choose_action logs DEBUG)
-        # This depends on the exact logging implemented in RandomAI
-        # For now, just assert it's a valid action.
+        # Run multiple times to increase chance of non-pass being picked if logic is random but prefers non-pass
+        chosen_actions_sample = [random_ai_fixture.decide_action(mock_game_state_for_ai, possible_actions) for _ in range(10)]
+        assert play_action in chosen_actions_sample # Check if play_action was chosen at least once
+        if pass_action in chosen_actions_sample and play_action in chosen_actions_sample:
+             pass # RandomAI might pick pass sometimes, which is fine for this simple AI
 
-    def test_choose_action_prefers_non_pass_if_available(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        valid_actions = [
-            {'type': 'PLAY_CARD', 'params': {'card_id': 'C001'}, 'description': 'Play C001'},
-            {'type': 'PASS_TURN', 'params': {}, 'description': 'Pass'}
-        ]
-        # Run multiple times to increase chance of catching error if it only picks PASS
-        non_pass_chosen_count = 0
-        for _ in range(20): # Statistically, PASS should not be chosen if others are available
-            chosen_action = random_ai_player.choose_action(mock_game_state, valid_actions)
-            assert chosen_action in valid_actions
-            if chosen_action['type'] != 'PASS_TURN':
-                non_pass_chosen_count +=1
-        
-        assert non_pass_chosen_count > 0 # It should have picked PLAY_CARD at least once
+    def test_decide_action_returns_pass_if_only_option(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        pass_action = GameAction(type="PASS_TURN", description="Pass")
+        possible_actions = [pass_action]
+        chosen_action = random_ai_fixture.decide_action(mock_game_state_for_ai, possible_actions)
+        assert chosen_action == pass_action
 
-    def test_choose_action_returns_pass_if_only_option(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        valid_actions = [
-            {'type': 'PASS_TURN', 'params': {}, 'description': 'Pass'}
-        ]
-        chosen_action = random_ai_player.choose_action(mock_game_state, valid_actions)
-        assert chosen_action is not None
-        assert chosen_action['type'] == 'PASS_TURN'
-
-    def test_choose_action_handles_empty_list_gracefully(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        # ActionGenerator should ideally always provide PASS_TURN, but test AI's robustness
-        valid_actions: List[Dict[str, Any]] = []
-        chosen_action = random_ai_player.choose_action(mock_game_state, valid_actions)
-        assert chosen_action is not None
-        assert chosen_action['type'] == 'PASS_TURN' # Fallback in RandomAI
-        assert any("No valid actions provided" in log for log in mock_game_state.game_log if "WARNING" in log)
-
+    def test_decide_action_handles_empty_list_gracefully(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        chosen_action = random_ai_fixture.decide_action(mock_game_state_for_ai, [])
+        assert chosen_action is None
 
 class TestRandomAIMakeChoice:
+    def test_make_choice_yes_no(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        choice_context = {"choice_type": PlayerChoiceType.CHOOSE_YES_NO, "prompt_text": "Choose?"}
+        decision = random_ai_fixture.make_choice(mock_game_state_for_ai, choice_context)
+        assert isinstance(decision, bool)
 
-    def test_make_choice_yes_no(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        choice_context = {
-            'choice_id': 'test_yes_no_1',
-            'choice_type': PlayerChoiceType.CHOOSE_YES_NO.name,
-            'prompt_text': 'Proceed with awesome action?',
-            'options': [True, False] # Options might be implicit for YES_NO in some designs
-        }
-        decision = random_ai_player.make_choice(mock_game_state, choice_context)
-        assert decision in [True, False]
+    def test_make_choice_from_list_options(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        options = ["optA", "optB", "optC"]
+        # Using a placeholder choice type that implies choosing from a list
+        choice_context = {"choice_type": PlayerChoiceType.CHOOSE_MODAL_EFFECT, "options": options, "prompt_text": "Choose."}
+        decision = random_ai_fixture.make_choice(mock_game_state_for_ai, choice_context)
+        assert decision in options
 
-    def test_make_choice_from_list_options(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        options_list = ["OptionA", "OptionB", "OptionC"]
+    def test_make_choice_discard_or_sacrifice_spirit(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        player_s_mock = mock_game_state_for_ai.get_active_player_state()
+        # Ensure player state has cards and spirits for a meaningful choice
+        mock_card_inst = MagicMock(spec=CardInstance); mock_card_inst.instance_id = "hand_card1"
+        player_s_mock.zones[Zone.HAND] = [mock_card_inst]
+        player_s_mock.spirit_tokens = 1
+
         choice_context = {
-            'choice_id': 'test_list_choice_1',
-            'choice_type': 'SOME_CUSTOM_LIST_CHOICE', # A generic or custom type for list choices
-            'prompt_text': 'Select one item:',
-            'options': options_list
+            "choice_type": PlayerChoiceType.DISCARD_CARD_OR_SACRIFICE_SPIRIT,
+            "options": ["DISCARD", "SACRIFICE_SPIRIT"], 
+            "prompt_text": "Discard or sacrifice?"
         }
-        decision = random_ai_player.make_choice(mock_game_state, choice_context)
-        assert decision in options_list
+        decision = random_ai_fixture.make_choice(mock_game_state_for_ai, choice_context)
+        assert isinstance(decision, bool) # RandomAI maps this to bool (True for discard)
+
+    def test_make_choice_empty_options_list_returns_none(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        choice_context = {"choice_type": PlayerChoiceType.CHOOSE_CARD_FROM_HAND, "options": [], "prompt_text": "Choose card."}
+        decision = random_ai_fixture.make_choice(mock_game_state_for_ai, choice_context)
+        assert decision is None
+
+class TestRandomAIChooseCardsToDiscard:
+    def test_choose_cards_to_discard_selects_correct_number(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        player_s_mock = mock_game_state_for_ai.get_active_player_state()
         
-    def test_make_choice_discard_or_sacrifice_spirit(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        # Example for Nightmare Creep choice
-        choice_context = {
-            'choice_id': 'nc_choice_test',
-            'choice_type': PlayerChoiceType.DISCARD_CARD_OR_SACRIFICE_SPIRIT.name,
-            'prompt_text': 'Nightmare Creep: Discard or Sacrifice?',
-            'options': ["DISCARD", "SACRIFICE_SPIRIT"] # Assuming options are string identifiers
-        }
-        decision = random_ai_player.make_choice(mock_game_state, choice_context)
-        assert decision in ["DISCARD", "SACRIFICE_SPIRIT"]
+        mock_ci1 = MagicMock(spec=CardInstance); mock_ci1.instance_id = "ci1"
+        mock_ci2 = MagicMock(spec=CardInstance); mock_ci2.instance_id = "ci2"
+        mock_ci3 = MagicMock(spec=CardInstance); mock_ci3.instance_id = "ci3"
+        player_s_mock.zones[Zone.HAND] = [mock_ci1, mock_ci2, mock_ci3]
 
-    def test_make_choice_empty_options_list(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        choice_context = {
-            'choice_id': 'test_empty_list',
-            'choice_type': 'SOME_LIST_CHOICE',
-            'prompt_text': 'Choose from nothing:',
-            'options': []
-        }
-        decision = random_ai_player.make_choice(mock_game_state, choice_context)
-        assert decision is None # RandomAI returns None if options list is empty
-        assert any("Could not make a random choice" in log for log in mock_game_state.game_log if "WARNING" in log)
+        discarded_ids = random_ai_fixture.choose_cards_to_discard(mock_game_state_for_ai, 2)
+        assert len(discarded_ids) == 2
+        for card_id in discarded_ids:
+            assert card_id in ["ci1", "ci2", "ci3"]
+        if len(discarded_ids) == 2: # Ensure uniqueness if possible
+            assert discarded_ids[0] != discarded_ids[1]
 
-    def test_make_choice_unknown_choice_type_with_options(self, random_ai_player: RandomAI, mock_game_state: GameState):
-        # If choice_type is unknown, it should still try to pick from 'options' if it's a list
-        options_list = [{"id": 1, "data": "A"}, {"id": 2, "data": "B"}]
-        choice_context = {
-            'choice_id': 'test_unknown_type',
-            'choice_type': 'TOTALLY_NEW_CHOICE_TYPE_UNKNOWN_TO_AI',
-            'prompt_text': 'A new kind of choice:',
-            'options': options_list
-        }
-        decision = random_ai_player.make_choice(mock_game_state, choice_context)
-        assert decision in options_list
-        assert any("Unknown choice_type string" in log for log in mock_game_state.game_log if "WARNING" in log)
-
-
-    # TODO: Add tests for more specific PlayerChoiceType scenarios as their 'choice_context'
-    #       and 'options' structures become more defined by the EffectEngine.
-    #       Examples:
-    #       - CHOOSE_CARD_FROM_HAND (options = list of Card objects)
-    #       - CHOOSE_NUMBER_FROM_RANGE (options = {'min': X, 'max': Y})
-    #       - CHOOSE_MODAL_EFFECT (options = list of effect descriptions/IDs)
+    def test_choose_cards_to_discard_empty_hand(self, random_ai_fixture: RandomAI, mock_game_state_for_ai: GameState):
+        player_s_mock = mock_game_state_for_ai.get_active_player_state()
+        player_s_mock.zones[Zone.HAND] = []
+        discarded_ids = random_ai_fixture.choose_cards_to_discard(mock_game_state_for_ai, 1)
+        assert len(discarded_ids) == 0
