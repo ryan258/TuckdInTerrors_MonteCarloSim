@@ -17,6 +17,8 @@ class EffectEngine:
         self.game_state_ref = game_state_ref
         self.win_loss_checker = win_loss_checker # Store WinLossChecker
 
+# In src/tuck_in_terrors_sim/game_logic/effect_engine.py, inside the EffectEngine class
+
     def check_condition(self,
                         condition_data: Optional[Dict[EffectConditionType, Any]],
                         player: PlayerState,
@@ -36,6 +38,7 @@ class EffectEngine:
         if event_context is None:
             event_context = {}
 
+        # This block remains the same
         def _resolve_param_enum(param_value: Any, enum_class: type) -> Any:
             if isinstance(param_value, str):
                 try:
@@ -45,6 +48,7 @@ class EffectEngine:
                     return None
             return param_value
 
+        # All of the "if/elif condition_type ==" blocks remain the same
         if condition_type == EffectConditionType.PLAYER_HAS_RESOURCE:
             resource_type_param = params.get("resource_type")
             resource_type = _resolve_param_enum(resource_type_param, ResourceType)
@@ -53,18 +57,15 @@ class EffectEngine:
                 game_state.add_log_entry(f"Invalid resource_type '{resource_type_param}' in PLAYER_HAS_RESOURCE condition.", "ERROR")
                 return False
             if resource_type == ResourceType.MANA: return player.mana >= required_amount
-            if resource_type == ResourceType.SPIRIT_TOKENS: return player.spirit_tokens >= required_amount # Corrected Enum
-            if resource_type == ResourceType.MEMORY_TOKENS: return player.memory_tokens >= required_amount # Corrected Enum
+            if resource_type == ResourceType.SPIRIT_TOKENS: return player.spirit_tokens >= required_amount
+            if resource_type == ResourceType.MEMORY_TOKENS: return player.memory_tokens >= required_amount
             return False
-
         elif condition_type == EffectConditionType.DECK_SIZE_LE:
             required_size = params.get("count", 0)
             return len(player.zones[Zone.DECK]) <= required_size
-
         elif condition_type == EffectConditionType.IS_FIRST_MEMORY_IN_PLAY:
             fm_instance = game_state.get_first_memory_instance()
             return fm_instance is not None and fm_instance.current_zone == Zone.IN_PLAY
-
         elif condition_type == EffectConditionType.IS_FIRST_MEMORY_IN_DISCARD:
             fm_instance = game_state.get_first_memory_instance()
             if fm_instance and fm_instance.current_zone == Zone.DISCARD:
@@ -72,10 +73,8 @@ class EffectEngine:
                  if owner_player_state and fm_instance in owner_player_state.zones[Zone.DISCARD]:
                      return True
             return False
-
-        elif condition_type == EffectConditionType.CARD_IS_TAPPED: # Changed from THIS_CARD_IS_TAPPED
+        elif condition_type == EffectConditionType.CARD_IS_TAPPED:
             return card_instance.is_tapped if card_instance else False
-
         elif condition_type == EffectConditionType.EVENT_CARD_IS_TYPE:
             event_card_inst = event_context.get("card_instance")
             target_type_param = params.get("card_type")
@@ -83,7 +82,6 @@ class EffectEngine:
             if isinstance(event_card_inst, CardInstance) and isinstance(target_type_enum, CardType):
                 return event_card_inst.definition.type == target_type_enum
             return False
-
         elif condition_type == EffectConditionType.IS_MOVING_FROM_ZONE:
             target_zone_param = params.get("zone")
             target_zone_enum = _resolve_param_enum(target_zone_param, Zone)
@@ -92,7 +90,6 @@ class EffectEngine:
             if isinstance(target_zone_enum, Zone) and isinstance(moving_card_origin_zone_enum, Zone):
                 return moving_card_origin_zone_enum == target_zone_enum
             return False
-
         elif condition_type == EffectConditionType.IS_MOVING_TO_ZONE:
             target_zone_param = params.get("zone")
             target_zone_enum = _resolve_param_enum(target_zone_param, Zone)
@@ -101,14 +98,15 @@ class EffectEngine:
             if isinstance(target_zone_enum, Zone) and isinstance(moving_card_destination_zone_enum, Zone):
                 return moving_card_destination_zone_enum == target_zone_enum
             return False
-
         elif condition_type == EffectConditionType.HAS_COUNTER_TYPE_VALUE_GE:
             if not card_instance: return False
             counter_type_str = params.get("counter_type")
             threshold = params.get("value", 1)
             return card_instance.get_counter(str(counter_type_str)) >= threshold if counter_type_str else False
 
-        game_state.add_log_entry(f"Warning: Condition type {condition_type.name} not fully implemented. Defaulting to False.", "ENGINE_DEBUG")
+        # *** FIX IS HERE: This logging is now safe and won't crash ***
+        condition_type_name = condition_type.name if hasattr(condition_type, 'name') else str(condition_type)
+        game_state.add_log_entry(f"Warning: Condition type '{condition_type_name}' not fully implemented. Defaulting to False.", "ENGINE_DEBUG")
         return False
 
     def resolve_effect(self,
@@ -158,6 +156,7 @@ class EffectEngine:
 
         return all_generated_actions
 
+# In src/tuck_in_terrors_sim/game_logic/effect_engine.py, inside the EffectEngine class
 
     def _execute_action(self,
                         action: EffectAction,
@@ -350,11 +349,6 @@ class EffectEngine:
                     sub_action, game_state, player, current_effect_context, card_instance))
             return pending_actions # Return collected pending actions
         elif action_type == EffectActionType.CANCEL_IMPENDING_LEAVE_PLAY:
-            # This action type is often a result of a PLAYER_CHOICE, e.g., "on_yes_actions".
-            # Its primary role is to signal that a pending "leave play" event should be stopped.
-            # The actual cancellation might be handled by the part of the engine that processes
-            # "leave play" events, by checking a flag set here or by reacting to this action.
-            # For now, we'll just log it. The true "cancellation" needs a more integrated event system.
             if 'triggering_event_context' in effect_context and \
                'card_instance_leaving_play' in effect_context['triggering_event_context']:
                 card_leaving = effect_context['triggering_event_context']['card_instance_leaving_play']
@@ -362,26 +356,11 @@ class EffectEngine:
                     f"Action CANCEL_IMPENDING_LEAVE_PLAY for {card_leaving.definition.name} ({card_leaving.instance_id}) processed.",
                     "EFFECT_INFO"
                 )
-                # To make this effective, you'd typically set a flag in game_state
-                # or modify the event_context if it's designed to control event flow.
-                # Example: effect_context['triggering_event_context']['cancelled'] = True
             else:
                 game_state.add_log_entry(
                     "CANCEL_IMPENDING_LEAVE_PLAY called without proper context.",
                     "WARNING"
                 )
-        elif action_type == EffectActionType.CAST_SPELL_WITH_STORM_COUNT: # Placeholder for objective tracking
-            spell_id = params.get("spell_card_id_or_name")
-            min_storm = params.get("min_storm_count")
-            # This action type implies an objective is met.
-            # The WinLossChecker looks for a flag like:
-            # event_key = f"CAST_SPELL_EVENT_MET_{spell_id}_STORM_{min_storm}"
-            # game_state.objective_progress[event_key] = True
-            # This action should be setting that flag.
-            event_key = f"CAST_SPELL_EVENT_MET_{spell_id}_STORM_{min_storm}"
-            game_state.objective_progress[event_key] = True
-            game_state.add_log_entry(f"Objective progress flag set: {event_key}=True", "OBJECTIVE_DEBUG")
-
         else:
             game_state.add_log_entry(f"Warning: Action type {action_type.name} not implemented in _execute_action.", "WARNING")
         # --- End of Standard Action Execution ---
@@ -393,7 +372,5 @@ class EffectEngine:
                     f"Game over condition met mid-effect after action {action_type.name}. Status: {game_state.win_status}",
                     "GAME_END"
                 )
-                # If the game ends, no further actions from this effect should be processed by the loop in resolve_effect.
-                # The `resolve_effect` method already checks `game_state.game_over` in its loop.
 
-        return pending_actions # Return any further actions generated by choices
+        return pending_actions

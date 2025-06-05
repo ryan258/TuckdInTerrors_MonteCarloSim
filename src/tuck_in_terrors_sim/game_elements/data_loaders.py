@@ -20,6 +20,7 @@ DEFAULT_OBJECTIVES_FILE = os.path.join(BASE_DIR, "..", "..", "..", "data", "obje
 def _parse_cost(cost_data: Optional[Dict[str, Any]]) -> Optional[Cost]:
     return Cost.from_dict(cost_data)
 
+# In src/tuck_in_terrors_sim/game_elements/data_loaders.py
 
 def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
     action_type_str = action_data.get("action_type")
@@ -32,12 +33,11 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
 
     params = action_data.get("params", {}).copy()
 
+    # This block handles parsing of nested data structures within an action's parameters.
     sub_action_keys = [
-        "on_true_actions", "on_false_actions",
-        "on_yes_actions", "on_no_actions",
-        "on_selection_actions", "sub_actions"
+        "on_true_actions", "on_false_actions", "on_yes_actions", "on_no_actions",
+        "on_selection_actions", "sub_actions", "on_discard_actions", "on_sacrifice_actions"
     ]
-
     if effect_action_type in [EffectActionType.CONDITIONAL_EFFECT, EffectActionType.PLAYER_CHOICE]:
         for key in sub_action_keys:
             if key in params and isinstance(params[key], list):
@@ -45,18 +45,14 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
                     params[key] = [_parse_effect_action(sa_data) for sa_data in params[key] if isinstance(sa_data, dict)]
                 except ValueError as e:
                     raise ValueError(f"Error parsing sub-action under '{key}' for '{action_type_str}': {e}")
-        
-        if "actions_map" in params and isinstance(params["actions_map"], dict):
-            parsed_actions_map = {}
-            for map_key, map_value in params["actions_map"].items():
-                if isinstance(map_value, list):
-                    try:
-                        parsed_actions_map[map_key] = [_parse_effect_action(sa_data) for sa_data in map_value if isinstance(sa_data, dict)]
-                    except ValueError as e:
-                         raise ValueError(f"Error parsing sub-action in 'actions_map' under key '{map_key}' for '{action_type_str}': {e}")
-                else:
-                    parsed_actions_map[map_key] = map_value 
-            params["actions_map"] = parsed_actions_map
+    
+    # *** FIX IS HERE: Specifically parse the nested condition for CONDITIONAL_EFFECT ***
+    if effect_action_type == EffectActionType.CONDITIONAL_EFFECT:
+        if "condition" in params and isinstance(params["condition"], dict):
+            try:
+                params["condition"] = _parse_condition(params["condition"])
+            except ValueError as e:
+                raise ValueError(f"Error parsing nested condition for CONDITIONAL_EFFECT: {e}")
 
     def _resolve_param_enum(param_value: Any, enum_class: type) -> Any:
         if isinstance(param_value, str):
@@ -77,7 +73,6 @@ def _parse_effect_action(action_data: Dict[str, Any]) -> EffectAction:
             params[param_key] = _resolve_param_enum(param_value, PlayerChoiceType)
         elif param_key == "trigger_type": 
              params[param_key] = _resolve_param_enum(param_value, EffectTriggerType)
-
 
     target_card_filter = params.get("target_card_filter")
     if target_card_filter and isinstance(target_card_filter, dict):

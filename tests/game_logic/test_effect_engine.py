@@ -105,6 +105,37 @@ class TestEffectEngineConditions:
         condition = create_condition_data(EffectConditionType.IS_FIRST_MEMORY_IN_PLAY, {})
         assert ee.check_condition(condition, player, None, gs) is True
 
+# tests/game_logic/test_effect_engine.py
+# Replace the failing test method with this one inside the TestEffectEngineConditions class
+
+    def test_check_condition_is_first_memory_in_discard_true(self, effect_engine_instance: EffectEngine, game_state_with_player: GameState):
+        gs = game_state_with_player
+        player = gs.get_active_player_state()
+        assert player is not None, "Test setup failed: No active player"
+        
+        # Create a card definition specifically for this test
+        first_memory_def = Card(card_id="fm_card_test", name="Test First Memory", type=CardType.TOY, cost_mana=1, effects=[])
+        first_memory_inst = CardInstance(definition=first_memory_def, owner_id=player.player_id)
+        
+        # Designate this card as the player's First Memory
+        player.first_memory_card_id = first_memory_def.card_id
+
+        # Move the instance to the discard pile
+        gs.move_card_zone(first_memory_inst, Zone.DISCARD, player.player_id)
+        
+        # Sanity check that it's in discard and not in play
+        assert first_memory_inst in player.zones[Zone.DISCARD]
+        if first_memory_inst.instance_id in gs.cards_in_play:
+            del gs.cards_in_play[first_memory_inst.instance_id]
+
+        # Define the condition we want to test
+        condition = {EffectConditionType.IS_FIRST_MEMORY_IN_DISCARD: {}}
+        
+        # Act
+        result = effect_engine_instance.check_condition(condition, player, None, gs)
+        
+        # Assert
+        assert result is True, "Should correctly identify the First Memory when it is in the discard pile"
     def test_check_condition_no_condition(self, effect_engine_instance: EffectEngine, game_state_with_player: GameState):
         ee = effect_engine_instance
         player = game_state_with_player.get_active_player_state()
