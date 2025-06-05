@@ -89,21 +89,62 @@ class TestGameSetup:
         assert player.first_memory_card_id is not None, "First Memory card ID should be set on PlayerState"
         fm_def_id = player.first_memory_card_id
         
-        # Ensure FM is a TOY and is in hand
-        fm_in_hand = False
-        for card_inst in player.zones[Zone.HAND]:
-            if card_inst.definition.card_id == fm_def_id:
-                assert card_inst.definition.type == CardType.TOY, "First Memory for Whisper Wake should be a Toy"
-                assert card_inst.custom_data.get("is_first_memory") is True, "FM instance in hand should be marked"
-                fm_in_hand = True
-                break
-        assert fm_in_hand, f"First Memory (Card ID: {fm_def_id}) should be in hand for Whisper Wake objective."
+        # Check First Memory properties and location
+        assert gs.first_memory_instance_id is not None, \
+            "GameState's first_memory_instance_id should be set if a First Memory was chosen."
+
+        fm_instance = gs.get_card_instance(gs.first_memory_instance_id)
+        assert fm_instance is not None, \
+            "gs.first_memory_instance_id should point to a valid card instance."
+
+        assert fm_instance.definition.card_id == fm_def_id, \
+            (f"The GameState's First Memory instance (Definition ID: {fm_instance.definition.card_id}) "
+             f"should match the PlayerState's First Memory card ID (Definition ID: {fm_def_id}).")
+        assert fm_instance.definition.type == CardType.TOY, \
+            "The First Memory must be a Toy."
+        assert fm_instance.custom_data.get("is_first_memory") is True, \
+            (f"The First Memory instance (Instance ID: {fm_instance.instance_id}) "
+             f"should be marked with custom_data['is_first_memory']=True.")
+
+        # For OBJ02_WHISPER_WAKE (Whisper Wake):
+        # - TCTOY002 (Ghost Doll) is specified by the objective to "start_cards_in_play".
+        # - The First Memory selection rule is "CHOOSE_TOY_FROM_TOP_X_DECK_TO_HAND".
+        # Case 1: Ghost Doll (TCTOY002) was chosen as First Memory.
+        #         It should end up IN_PLAY (due to "start_cards_in_play" taking precedence)
+        #         and be the game_state.first_memory_instance_id. It should NOT also be in hand.
+        # Case 2: A different Toy was chosen as First Memory.
+        #         That different Toy should be IN_HAND and be game_state.first_memory_instance_id.
+        #         TCTOY002 (Ghost Doll) will still be in play but NOT as the First Memory instance.
+
+        if fm_def_id == "TCTOY002":  # If Ghost Doll was chosen as First Memory
+            assert fm_instance.current_zone == Zone.IN_PLAY, \
+                (f"If First Memory is TCTOY002 (Ghost Doll), it should be in play for Whisper Wake, "
+                 f"not {fm_instance.current_zone}.")
+            # Ensure it's not also in hand
+            fm_also_in_hand = any(hand_card.definition.card_id == "TCTOY002" for hand_card in player.zones[Zone.HAND])
+            assert not fm_also_in_hand, \
+                "TCTOY002 (as First Memory in play) should not simultaneously be in the player's hand."
+        else:  # If a Toy other than Ghost Doll was chosen as First Memory
+            assert fm_instance.current_zone == Zone.HAND, \
+                (f"If First Memory is {fm_def_id} (not TCTOY002), it should be in hand for Whisper Wake, "
+                 f"not {fm_instance.current_zone}.")
+            # Additionally, ensure TCTOY002 (Ghost Doll) is still in play but is NOT the First Memory instance
+            ghost_doll_in_play_obj = None
+            for card_in_play_area in gs.cards_in_play.values():
+                if card_in_play_area.definition.card_id == "TCTOY002":
+                    ghost_doll_in_play_obj = card_in_play_area
+                    break
+            assert ghost_doll_in_play_obj is not None, \
+                "TCTOY002 (Ghost Doll) should still be in play as per objective setup, even if not the First Memory."
+            assert ghost_doll_in_play_obj.instance_id != gs.first_memory_instance_id, \
+                ("If the First Memory is not TCTOY002, then the TCTOY002 (Ghost Doll) instance in play "
+                 "should not be the game_state.first_memory_instance_id.")
         
-        # Ensure FM is not also in play (unless it's also the Ghost Doll, which is unlikely by design)
-        if gs.first_memory_instance_id:
-            fm_instance_in_play = gs.get_card_instance(gs.first_memory_instance_id)
-            assert fm_instance_in_play is None or fm_instance_in_play.definition.card_id != fm_def_id or fm_instance_in_play.definition.card_id == "TCTOY002", \
-                "First Memory (if chosen from deck to hand) should not also be a separate instance in play unless it's the Ghost Doll."
+        # # Ensure FM is not also in play (unless it's also the Ghost Doll, which is unlikely by design)
+        # if gs.first_memory_instance_id:
+        #     fm_instance_in_play = gs.get_card_instance(gs.first_memory_instance_id)
+        #     assert fm_instance_in_play is None or fm_instance_in_play.definition.card_id != fm_def_id or fm_instance_in_play.definition.card_id == "TCTOY002", \
+        #         "First Memory (if chosen from deck to hand) should not also be a separate instance in play unless it's the Ghost Doll."
 
         assert len(player.zones[Zone.HAND]) == INITIAL_HAND_SIZE
         assert gs.current_turn == 1

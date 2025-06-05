@@ -77,7 +77,7 @@ class TurnManager:
         # Mana gain - objectives can override first turn mana via game_setup
         # Standard gain: current_turn number (e.g. turn 1 = 1 mana, turn 2 = 2 mana etc.)
         # Let's assume mana is set to current_turn unless overridden
-        mana_this_turn = gs.current_turn 
+        mana_this_turn = gs.current_turn + 1 
         is_first_turn_mana_override = False
         if gs.current_turn == 1 and gs.current_objective.setup_instructions:
             setup_params = gs.current_objective.setup_instructions.params
