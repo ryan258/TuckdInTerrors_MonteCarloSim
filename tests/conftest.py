@@ -56,13 +56,17 @@ def initialized_game_environment(
     objective_def_first_night: ObjectiveCard
 ) -> Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]: # Now returns 6 items
     
-    game_state = initialize_new_game(objective_def_first_night, game_data.cards_by_id) # Use cards_by_id (Dict)
+    game_state = initialize_new_game(objective_def_first_night, game_data.cards_by_id)
     
     effect_engine = EffectEngine(game_state_ref=game_state)
-    action_resolver = ActionResolver(game_state, effect_engine) 
-    nightmare_module = NightmareCreepModule(game_state, effect_engine)
+    # MODIFIED: Instantiate WinLossChecker before ActionResolver
     win_loss_checker = WinLossChecker(game_state)
+    # MODIFIED: Pass win_loss_checker to ActionResolver
+    action_resolver = ActionResolver(game_state, effect_engine, win_loss_checker) 
     
+    nightmare_module = NightmareCreepModule(game_state, effect_engine)
+    
+    # TurnManager now gets the ActionResolver that has the WinLossChecker
     turn_manager = TurnManager(
         game_state=game_state, 
         action_resolver=action_resolver, 

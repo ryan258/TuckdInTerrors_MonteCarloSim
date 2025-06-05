@@ -13,6 +13,7 @@ from tuck_in_terrors_sim.game_logic.game_state import GameState, PlayerState
 from tuck_in_terrors_sim.game_logic.effect_engine import EffectEngine
 from tuck_in_terrors_sim.game_logic.action_resolver import ActionResolver # Import ActionResolver
 from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
+from src.tuck_in_terrors_sim.game_logic.win_loss_checker import WinLossChecker # ADD THIS IMPORT
 
 
 @pytest.fixture
@@ -52,11 +53,24 @@ def game_state_for_actions(empty_objective_card: ObjectiveCard, card_defs_for_re
     return gs
 
 @pytest.fixture
-def action_resolver(game_state_for_actions: GameState, mock_effect_engine: MagicMock) -> ActionResolver:
+def mock_win_loss_checker(game_state_for_actions: GameState) -> MagicMock: # ADD THIS NEW FIXTURE
+    """Provides a mocked WinLossChecker."""
+    checker = MagicMock(spec=WinLossChecker)
+    # Setup default return value for check_all_conditions if needed, e.g., False
+    checker.check_all_conditions.return_value = False 
+    return checker
+
+@pytest.fixture
+def action_resolver(
+    game_state_for_actions: GameState, 
+    mock_effect_engine: MagicMock,
+    mock_win_loss_checker: MagicMock # ADD mock_win_loss_checker dependency
+) -> ActionResolver:
     # Pass the game_state_for_actions to the EffectEngine if it's stored as a reference
-    # Assuming EffectEngine init might be: EffectEngine(game_state_ref=game_state_for_actions)
-    # For this test, effect_engine is mocked, so its internal gs reference might not matter unless methods are called on it
-    return ActionResolver(game_state_for_actions, mock_effect_engine)
+    # For this test, effect_engine is mocked, so its internal gs reference might not matter
+    
+    # MODIFIED: Pass mock_win_loss_checker to ActionResolver
+    return ActionResolver(game_state_for_actions, mock_effect_engine, mock_win_loss_checker)
 
 class TestActionResolverPlayCard:
     def test_play_toy_from_hand_sufficient_mana(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
