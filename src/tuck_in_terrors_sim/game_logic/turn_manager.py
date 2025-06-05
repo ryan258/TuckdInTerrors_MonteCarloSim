@@ -41,7 +41,6 @@ class TurnManager:
         # ActionGenerator can still be instantiated on demand in _main_phase if it's stateless
         self.action_generator = ActionGenerator()
 
-    
     def _begin_turn_phase(self):
         gs = self.game_state
         active_player = gs.get_active_player_state()
@@ -57,41 +56,97 @@ class TurnManager:
                 card_instance.untap()
                 gs.add_log_entry(f"Untapped '{card_instance.definition.name}' ({card_instance.instance_id}).")
         
+        # Clear once-per-turn effect usage trackers for cards controlled by the player
         for card_instance in gs.cards_in_play.values():
             if card_instance.controller_id == active_player.player_id:
-                if card_instance.turn_entered_play is not None: 
-                    pass 
-                card_instance.effects_active_this_turn.clear()
+                # Ensure the attribute exists, similar to action_generator.py
+                if hasattr(card_instance, 'effects_active_this_turn'): # Ensure correct attribute name
+                    card_instance.effects_active_this_turn.clear()
+                else: # Defensive initialization if somehow missing
+                    card_instance.effects_active_this_turn = set()
+
 
         active_player.has_played_free_toy_this_turn = False
-        gs.storm_count_this_turn = 0 # MODIFIED: Reset storm count for the new turn
+        gs.storm_count_this_turn = 0 
         gs.nightmare_creep_effect_applied_this_turn = False
         gs.nightmare_creep_skipped_this_turn = False
 
-        mana_this_turn = gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE 
+        # Mana Gain Logic
+        mana_this_turn = gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE
         is_first_turn_mana_override = False
-
         if gs.current_turn == 1 and gs.current_objective.setup_instructions:
             setup_params = gs.current_objective.setup_instructions.params
             if "first_turn_mana_override" in setup_params:
-                mana_this_turn = active_player.mana 
-                is_first_turn_mana_override = True
-                gs.add_log_entry(f"Mana for Turn 1 is {active_player.mana} (as per objective override).")
-        
-        if not is_first_turn_mana_override:
-            active_player.mana = mana_this_turn 
-            gs.add_log_entry(f"Player {active_player.player_id} sets mana to {active_player.mana} (Turn {gs.current_turn} + {STANDARD_MANA_GAIN_PER_TURN_BASE}).")
-        elif active_player.mana != mana_this_turn and gs.current_turn == 1 : 
-            gs.add_log_entry(f"Player {active_player.player_id} mana remains {active_player.mana} for Turn 1 (objective override). Standard gain would have been {gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE}.", level="DEBUG")
+                # This part was identified as a bit complex but functionally okay
+                # due to game_setup.py pre-setting mana for turn 1 override.
+                # The effective mana for turn 1 will be what game_setup set it to.
+                # For other turns, or if no override, the standard gain applies.
+                if active_player.mana == setup_params["first_turn_mana_override"]: # Check if it was set by setup
+                     mana_this_turn = active_player.mana # type: ignore
+                     is_first_turn_mana_override = True
+                     gs.add_log_entry(f"Mana for Turn 1 is {active_player.mana} (as per objective override).")
+                else: # If not already set by setup, apply the override now (should not happen if setup is correct)
+                    mana_this_turn = setup_params["first_turn_mana_override"]
+                    active_player.mana = mana_this_turn
+                    is_first_turn_mana_override = True
+                    gs.add_log_entry(f"Mana for Turn 1 set to {active_player.mana} (objective override in TurnManager).")
 
+
+        if not is_first_turn_mana_override:
+            active_player.mana = mana_this_turn
+            gs.add_log_entry(f"Player {active_player.player_id} sets mana to {active_player.mana} (Turn {gs.current_turn} + {STANDARD_MANA_GAIN_PER_TURN_BASE}).")
+        elif gs.current_turn == 1 and active_player.mana != (gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE) and is_first_turn_mana_override:
+             # This log entry might be redundant if mana is correctly set as per override
+             gs.add_log_entry(f"Player {active_player.player_id} mana is {active_player.mana} for Turn 1 (objective override). Standard gain would have been {gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE}.", level="DEBUG")
+
+
+        # Draw card(s)
         gs.add_log_entry(f"Player {active_player.player_id} attempts to draw {STANDARD_CARDS_TO_DRAW_PER_TURN} card(s).")
         active_player.draw_cards(STANDARD_CARDS_TO_DRAW_PER_TURN, gs)
-        
-        if self.nightmare_module.apply_nightmare_creep_for_current_turn():
-            pass 
-        else:
-            gs.add_log_entry("Nightmare Creep not active or skipped this turn.")
+        if gs.game_over: return # Check if drawing from empty deck ended game (if that rule were active)
 
+        # Apply Nightmare Creep
+        if not gs.game_over:
+            if self.nightmare_module.apply_nightmare_creep_for_current_turn():
+                pass
+            else:
+                gs.add_log_entry("Nightmare Creep not active or skipped this turn.")
+            if gs.game_over: return # NC might end the game
+
+        # Resolve "at the beginning of turn" effects for cards in play (oldest first)
+        if not gs.game_over:
+            gs.add_log_entry("Resolving 'at beginning of turn' effects for cards in play.", "EFFECT_DEBUG")
+            
+            # Get cards controlled by the active player
+            player_cards_in_play = [
+                card_inst for card_inst in gs.cards_in_play.values()
+                if card_inst.controller_id == active_player.player_id
+            ]
+
+            # Sort them: oldest first (by turn_entered_play, then by instance_id for tie-breaking)
+            # CardInstance.instance_id includes a numeric suffix that increments, acting as a tie-breaker.
+            def sort_key(card_instance: CardInstance): # type: ignore
+                # Ensure turn_entered_play is not None; default to a high number if it is (should not happen for cards in play)
+                turn_entered = card_instance.turn_entered_play if card_instance.turn_entered_play is not None else float('inf')
+                return (turn_entered, card_instance.instance_id)
+
+            player_cards_in_play.sort(key=sort_key)
+
+            for card_instance in player_cards_in_play: # type: ignore
+                if gs.game_over: break # Stop if an effect ends the game
+                for effect_obj in card_instance.definition.effects: # type: ignore
+                    if effect_obj.trigger == EffectTriggerType.AT_BEGINNING_OF_TURN:
+                        gs.add_log_entry(f"Attempting AT_BEGINNING_OF_TURN effect for '{card_instance.definition.name}' ({card_instance.instance_id}).", "EFFECT_DEBUG") # type: ignore
+                        self.effect_engine.resolve_effect(
+                            effect=effect_obj,
+                            game_state=gs,
+                            player=active_player, # The player whose turn it is
+                            source_card_instance=card_instance, # type: ignore
+                            triggering_event_context={'event_type': EffectTriggerType.AT_BEGINNING_OF_TURN.name, 'turn': gs.current_turn}
+                        )
+                        if gs.game_over: break
+                if gs.game_over: break
+      
     def _main_phase(self): # AI player is now fetched from game_state
         gs = self.game_state
         active_player = gs.get_active_player_state()

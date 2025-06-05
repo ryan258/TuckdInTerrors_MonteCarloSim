@@ -52,27 +52,25 @@ def objective_def_whisper_wake(game_data: GameData) -> ObjectiveCard:
 
 @pytest.fixture
 def initialized_game_environment(
-    game_data: GameData, 
+    game_data: GameData,
     objective_def_first_night: ObjectiveCard
-) -> Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]: # Now returns 6 items
-    
+) -> Tuple[GameState, ActionResolver, EffectEngine, TurnManager, NightmareCreepModule, WinLossChecker]:
+
     game_state = initialize_new_game(objective_def_first_night, game_data.cards_by_id)
-    
-    effect_engine = EffectEngine(game_state_ref=game_state)
-    # MODIFIED: Instantiate WinLossChecker before ActionResolver
-    win_loss_checker = WinLossChecker(game_state)
-    # MODIFIED: Pass win_loss_checker to ActionResolver
-    action_resolver = ActionResolver(game_state, effect_engine, win_loss_checker) 
-    
-    nightmare_module = NightmareCreepModule(game_state, effect_engine)
-    
-    # TurnManager now gets the ActionResolver that has the WinLossChecker
+    win_loss_checker = WinLossChecker(game_state) # Instantiate WinLossChecker first
+
+    # Pass win_loss_checker to EffectEngine
+    effect_engine = EffectEngine(game_state_ref=game_state, win_loss_checker=win_loss_checker)
+
+    action_resolver = ActionResolver(game_state, effect_engine, win_loss_checker)
+    nightmare_module = NightmareCreepModule(game_state, effect_engine) # NightmareCreepModule gets the new EE
+
     turn_manager = TurnManager(
-        game_state=game_state, 
-        action_resolver=action_resolver, 
-        effect_engine=effect_engine, 
-        nightmare_module=nightmare_module, 
+        game_state=game_state,
+        action_resolver=action_resolver,
+        effect_engine=effect_engine,
+        nightmare_module=nightmare_module,
         win_loss_checker=win_loss_checker
     )
-    
+
     return game_state, action_resolver, effect_engine, turn_manager, nightmare_module, win_loss_checker

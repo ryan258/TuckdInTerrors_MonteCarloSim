@@ -15,7 +15,7 @@ from tuck_in_terrors_sim.game_elements.enums import (
 )
 from tuck_in_terrors_sim.ai.ai_profiles.random_ai import RandomAI 
 from tuck_in_terrors_sim.game_logic.game_setup import DEFAULT_PLAYER_ID
-
+from tuck_in_terrors_sim.game_logic.win_loss_checker import WinLossChecker 
 
 # --- Fixtures ---
 
@@ -80,8 +80,9 @@ def game_state_with_player(empty_objective_for_ee: ObjectiveCard, card_defs_for_
 
 @pytest.fixture
 def effect_engine_instance(game_state_with_player: GameState) -> EffectEngine:
-    """Provides an EffectEngine instance initialized with the game_state."""
-    return EffectEngine(game_state_ref=game_state_with_player)
+    """Provides an EffectEngine instance initialized with the game_state and a WinLossChecker."""
+    win_loss_checker = WinLossChecker(game_state=game_state_with_player) # Create WinLossChecker
+    return EffectEngine(game_state_ref=game_state_with_player, win_loss_checker=win_loss_checker) # Pass it here
 
 def create_condition_data(condition_type: EffectConditionType, params: Dict[str, Any]) -> Dict[EffectConditionType, Any]:
     return {condition_type: params}

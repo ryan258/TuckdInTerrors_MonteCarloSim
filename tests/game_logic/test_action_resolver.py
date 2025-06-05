@@ -93,12 +93,21 @@ class TestActionResolverPlayCard:
         assert player.mana == 4 
         # Check if the ON_PLAY effect of toy1 was resolved
         # This assumes toy1_def.effects[0] is the ON_PLAY effect
+        expected_event_context = {
+            'event_type': 'CARD_PLAYED',
+            'played_card_instance_id': toy_instance.instance_id,
+            'played_card_definition_id': toy_card_def.card_id,
+            'played_card_type': toy_card_def.type,
+            'played_card_subtypes': toy_card_def.subtypes,
+            'player_id': player.player_id,
+            'targets': None  # Assuming targets is None for this test case
+        }
         mock_effect_engine.resolve_effect.assert_any_call(
             effect=toy_card_def.effects[0],
             game_state=gs,
             player=player,
             source_card_instance=toy_instance,
-            triggering_event_context={'played_card_instance_id': toy_instance.instance_id, 'targets': None}
+            triggering_event_context=expected_event_context
         )
 
 
@@ -119,12 +128,21 @@ class TestActionResolverPlayCard:
         assert spell_instance in player.zones[Zone.DISCARD] 
         assert spell_instance.current_zone == Zone.DISCARD
         assert player.mana == 1 
+        expected_event_context_spell = {
+            'event_type': 'CARD_PLAYED',
+            'played_card_instance_id': spell_instance.instance_id,
+            'played_card_definition_id': spell_card_def.card_id,
+            'played_card_type': spell_card_def.type,
+            'played_card_subtypes': spell_card_def.subtypes,
+            'player_id': player.player_id,
+            'targets': None  # Assuming targets is None for this test case
+        }
         mock_effect_engine.resolve_effect.assert_any_call(
             effect=spell_card_def.effects[0],
             game_state=gs,
             player=player,
             source_card_instance=spell_instance,
-            triggering_event_context={'played_spell_instance_id': spell_instance.instance_id, 'targets': None}
+            triggering_event_context=expected_event_context_spell
         )
 
     def test_play_card_not_in_hand(self, action_resolver: ActionResolver, game_state_for_actions: GameState):
