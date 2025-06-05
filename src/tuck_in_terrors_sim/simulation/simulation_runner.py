@@ -19,8 +19,8 @@ from ..game_logic.turn_manager import TurnManager
 # AI
 from ..ai.ai_player_base import AIPlayerBase
 from ..ai.ai_profiles.random_ai import RandomAI
-# Add other AI profiles here as they are created
-# from ..ai.ai_profiles.greedy_ai import GreedyAI
+from ..ai.ai_profiles.greedy_ai import GreedyAI
+from ..ai.ai_profiles.scoring_ai import ScoringAI
 
 class SimulationRunner:
     """Orchestrates running one or more game simulations."""
@@ -37,9 +37,11 @@ class SimulationRunner:
         """Factory function to get an AI player instance by name."""
         if ai_profile_name == "random_ai":
             return RandomAI(player_id=player_id)
-        # Add other profiles here
-        # elif ai_profile_name == "greedy_ai":
-        #     return GreedyAI(player_id=player_id)
+        elif ai_profile_name == "greedy_ai":
+            return GreedyAI(player_id=player_id)
+        # *** ADD THIS ELIF BLOCK ***
+        elif ai_profile_name == "scoring_ai":
+            return ScoringAI(player_id=player_id)
         else:
             print(f"Warning: Unknown AI profile '{ai_profile_name}'.")
             return None
