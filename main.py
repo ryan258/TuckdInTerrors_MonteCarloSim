@@ -2,7 +2,7 @@
 
 import argparse
 import json
-import os  # <-- ADD THIS IMPORT
+import os
 from tqdm import tqdm
 
 from src.tuck_in_terrors_sim.simulation.simulation_runner import SimulationRunner
@@ -19,13 +19,12 @@ def main_cli():
     parser.add_argument("--cards-file", type=str, default="data/cards.json", help="Path to the cards data file.")
     parser.add_argument("--objectives-file", type=str, default="data/objectives.json", help="Path to the objectives data file.")
     parser.add_argument("--verbose", action="store_true", help="Print the full game log of the LAST simulation.")
-    parser.add_argument("--output-file", type=str, default=None, help="Path to save the simulation results as a JSON file.")
+    parser.add_argument("--output-file", type=str, default=None, help="Filename to save the simulation results as a JSON file.")
     parser.add_argument("--visualize", action="store_true", help="Generate and save plots of the simulation results.")
     parser.add_argument("--output-dir", type=str, default="results", help="Directory to save output files (JSON, plots).")
 
     args = parser.parse_args()
 
-    # Create output directory if it doesn't exist
     if args.output_file or args.visualize:
         if not os.path.exists(args.output_dir):
             os.makedirs(args.output_dir)
@@ -49,7 +48,9 @@ def main_cli():
         analyzer.calculate_and_print_summary(results_data)
 
         if args.output_file:
-            file_path = os.path.join(args.output_dir, args.output_file)
+            # *** FIX IS HERE: Use os.path.basename to handle file paths robustly ***
+            filename = os.path.basename(args.output_file)
+            file_path = os.path.join(args.output_dir, filename)
             print(f"\nSaving {len(results_data)} simulation results to {file_path}...")
             try:
                 with open(file_path, 'w', encoding='utf-8') as f:

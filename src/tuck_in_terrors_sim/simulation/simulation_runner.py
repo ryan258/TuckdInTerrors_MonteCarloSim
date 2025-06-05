@@ -1,11 +1,10 @@
 # src/tuck_in_terrors_sim/simulation/simulation_runner.py
-# Orchestrates running multiple game simulations
 
-from typing import Dict, Any, Optional
+from typing import Optional
 
 # Game data and elements
 from ..game_elements.data_loaders import GameData
-from ..game_elements.objective import ObjectiveCard
+from ..game_elements.enums import Zone, EffectTriggerType  # <-- FIX IS HERE
 
 # Game logic components
 from ..game_logic.game_state import GameState
@@ -21,6 +20,7 @@ from ..ai.ai_player_base import AIPlayerBase
 from ..ai.ai_profiles.random_ai import RandomAI
 from ..ai.ai_profiles.greedy_ai import GreedyAI
 from ..ai.ai_profiles.scoring_ai import ScoringAI
+
 
 class SimulationRunner:
     """Orchestrates running one or more game simulations."""
@@ -39,7 +39,6 @@ class SimulationRunner:
             return RandomAI(player_id=player_id)
         elif ai_profile_name == "greedy_ai":
             return GreedyAI(player_id=player_id)
-        # *** ADD THIS ELIF BLOCK ***
         elif ai_profile_name == "scoring_ai":
             return ScoringAI(player_id=player_id)
         else:
@@ -83,9 +82,30 @@ class SimulationRunner:
             win_loss_checker=win_loss_checker
         )
 
-        # 4. Main Game Loop
+        # 4. Post-Setup Effect Resolution
+        game_state.add_log_entry("--- Resolving Post-Setup Effects ---", "SIM_INFO")
+        
+        # *** FIX IS HERE: Correctly get cards from the player's IN_PLAY zone ***
+        active_player_state = game_state.get_active_player_state()
+        if active_player_state:
+            # Create a copy of the list to safely iterate over it
+            cards_starting_in_play = list(active_player_state.zones[Zone.IN_PLAY])
+            for card_instance in cards_starting_in_play:
+                for effect in card_instance.definition.effects:
+                    if effect.trigger == EffectTriggerType.ON_PLAY:
+                         effect_engine.resolve_effect(
+                             effect=effect,
+                             game_state=game_state,
+                             player=active_player_state,
+                             source_card_instance=card_instance
+                         )
+        
+        if win_loss_checker.check_all_conditions():
+            game_state.game_over = True
+
+        # 5. Main Game Loop
         game_state.add_log_entry(f"--- Simulation Start: Objective '{objective.title}', AI '{ai_profile_name}' ---", "SIM_INFO")
-        max_turns = 100 # Safety break
+        max_turns = 100 
         while not game_state.game_over and game_state.current_turn <= max_turns:
             turn_manager.execute_full_turn()
 

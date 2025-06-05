@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, List, Dict, Any, Optional
 from .random_ai import RandomAI
 from ...game_elements.card import CardType, EffectActionType
 from ...models.game_action_model import GameAction
+from ...game_elements.enums import PlayerChoiceType
 
 if TYPE_CHECKING:
     from ...game_logic.game_state import GameState
@@ -52,6 +53,25 @@ class ScoringAI(RandomAI):
 
         # Default score for unhandled objectives
         return 1 if action.type != "PASS_TURN" else 0
+
+    def make_choice(self, game_state: 'GameState', choice_context: Dict[str, Any]) -> Any:
+        """
+        Overrides the default random choice to make smarter decisions,
+        especially regarding the Nightmare Creep.
+        """
+        choice_type = choice_context.get("choice_type")
+
+        # If faced with the Nightmare Creep choice, be smart about it.
+        if choice_type == PlayerChoiceType.DISCARD_CARD_OR_SACRIFICE_SPIRIT:
+            player_state = game_state.get_player_state(self.player_id)
+            
+            # If we have spirit tokens, ALWAYS use them instead of discarding a card.
+            if player_state and player_state.spirit_tokens > 0:
+                game_state.add_log_entry(f"AI P{self.player_id} (ScoringAI) chose to sacrifice a spirit to Nightmare Creep.", "AI_CHOICE")
+                return "sacrifice" # Corresponds to the 'on_sacrifice_actions' in the effect
+
+        # For all other choices, fall back to the default random behavior.
+        return super().make_choice(game_state, choice_context)
 
     def decide_action(self, game_state: 'GameState', possible_actions: List['GameAction']) -> Optional['GameAction']:
         """Chooses the action with the highest score."""

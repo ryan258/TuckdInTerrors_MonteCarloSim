@@ -7,8 +7,8 @@
     "primary_win_condition": {
       "component_type": "PLAY_X_DIFFERENT_TOYS_AND_CREATE_Y_SPIRITS",
       "params": {
-        "toys_needed": 4,
-        "spirits_needed": 4
+        "toys_needed": 3,
+        "spirits_needed": 3
       },
       "description": "Play 4 different Toys and create 4 Spirits."
     },
