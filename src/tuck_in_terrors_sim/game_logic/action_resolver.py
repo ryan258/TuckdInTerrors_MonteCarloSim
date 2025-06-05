@@ -25,7 +25,6 @@ class ActionResolver:
             gs.add_log_entry("Action Error: No active player found to play card.", level="ERROR")
             return False
 
-        # Find the CardInstance in the player's hand
         card_to_play_instance: Optional[CardInstance] = None
         card_hand_idx = -1
         for idx, inst in enumerate(active_player.zones[Zone.HAND]):
@@ -38,9 +37,8 @@ class ActionResolver:
             gs.add_log_entry(f"Action Error: Card instance '{card_instance_id_in_hand}' not in P{active_player.player_id}'s hand.", level="ERROR")
             return False
 
-        card_def = card_to_play_instance.definition # The Card definition
+        card_def = card_to_play_instance.definition
 
-        # Cost and Playability Checks
         if is_free_toy_play:
             if active_player.has_played_free_toy_this_turn:
                 gs.add_log_entry(f"Action Error: Free Toy already played this turn. Cannot play '{card_def.name}'.", level="ERROR")
@@ -57,61 +55,53 @@ class ActionResolver:
             active_player.mana -= card_def.cost_mana 
             gs.add_log_entry(f"P{active_player.player_id} spent {card_def.cost_mana} mana. Mana: {active_player.mana}.")
 
-        # Card is now being played. It moves from hand to "being_cast" or directly to its destination.
-        # For simplicity here, assume it's removed from hand, then processed.
-        # The card_to_play_instance is the actual object from hand.
-        active_player.zones[Zone.HAND].pop(card_hand_idx) 
-        # No, GameState.move_card_zone should handle removal from old zone.
+        # Card is being played
+        original_hand_card = active_player.zones[Zone.HAND].pop(card_hand_idx)
+        # Ensure we're using the exact instance popped from hand.
+        # card_to_play_instance should be original_hand_card
 
         if card_def.type == CardType.TOY or card_def.type == CardType.RITUAL:
-            # CardInstance is already what we have (card_to_play_instance)
-            # We just need to move it to the IN_PLAY zone.
             gs.move_card_zone(card_to_play_instance, Zone.IN_PLAY, active_player.player_id)
-            card_to_play_instance.turn_entered_play = gs.current_turn # Ensure this is set
+            card_to_play_instance.turn_entered_play = gs.current_turn
             
             gs.add_log_entry(f"P{active_player.player_id} played {card_def.type.name} '{card_def.name}' ({card_to_play_instance.instance_id}) to play area.")
             
-            # Trigger ON_PLAY effects for this card instance
             for effect_obj in card_to_play_instance.definition.effects:
                 if effect_obj.trigger == EffectTriggerType.ON_PLAY:
                     self.effect_engine.resolve_effect(
                         effect=effect_obj,
                         game_state=gs,
-                        player=active_player, # Player who controls the card and effect
+                        player=active_player,
                         source_card_instance=card_to_play_instance,
                         triggering_event_context={'played_card_instance_id': card_to_play_instance.instance_id, 'targets': targets}
                     )
-            # TODO: Trigger WHEN_OTHER_CARD_ENTERS_PLAY for other cards (more complex, needs event manager or iteration)
 
         elif card_def.type == CardType.SPELL:
             gs.add_log_entry(f"P{active_player.player_id} plays Spell '{card_def.name}'. Resolving...")
-            # Spells typically don't enter play as persistent instances in the same way.
-            # Their effects trigger, and then they go to discard.
-            # The card_to_play_instance represents the spell card.
-            # Trigger ON_PLAY effects for this spell. Source is the spell instance itself.
+            
+            # Storm effects will read gs.storm_count_this_turn for spells cast *before* this one.
             for effect_obj in card_to_play_instance.definition.effects:
                  if effect_obj.trigger == EffectTriggerType.ON_PLAY:
                     self.effect_engine.resolve_effect(
                         effect=effect_obj,
                         game_state=gs,
-                        player=active_player, # Player casting the spell
-                        source_card_instance=card_to_play_instance, # Spell instance as source context
+                        player=active_player, 
+                        source_card_instance=card_to_play_instance, 
                         triggering_event_context={'played_spell_instance_id': card_to_play_instance.instance_id, 'targets': targets}
                     )
-            # After ON_PLAY effects resolve, move spell instance to discard.
+            
+            # Increment storm count *after* this spell's ON_PLAY effects are resolved,
+            # so it counts for subsequent spells this turn.
+            gs.storm_count_this_turn += 1 # MODIFIED: Increment storm count
+            gs.add_log_entry(f"Spell '{card_def.name}' cast. Storm count for this turn now: {gs.storm_count_this_turn}.")
+            
             gs.move_card_zone(card_to_play_instance, Zone.DISCARD, active_player.player_id)
             gs.add_log_entry(f"Spell '{card_def.name}' ({card_to_play_instance.instance_id}) moved to P{active_player.player_id}'s discard pile.")
 
-        # Update Game State Flags
         if is_free_toy_play:
-            active_player.has_played_free_toy_this_turn = True # Flag on PlayerState
-            gs.add_log_entry("Free Toy play for P{active_player.player_id} used this turn.")
+            active_player.has_played_free_toy_this_turn = True
+            gs.add_log_entry(f"Free Toy play for P{active_player.player_id} used this turn.")
             
-        if card_def.type == CardType.SPELL: 
-            # gs.storm_count_this_turn +=1 # Assuming storm_count is on GameState for now
-            # gs.add_log_entry(f"Spell played. Storm count this turn now: {gs.storm_count_this_turn}.")
-            pass # Storm count might be tracked on PlayerState or GameState
-
         return True
 
     def activate_ability(self, card_instance_id: str, effect_index: int, targets: Optional[List[Any]] = None) -> bool:

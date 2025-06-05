@@ -116,6 +116,7 @@ class GameState:
         self.game_over: bool = False
         self.win_status: Optional[str] = None # E.g., "PRIMARY_WIN", "ALTERNATIVE_WIN", "LOSS_NIGHTFALL"
         self.reason_for_game_end: str = ""
+        self.storm_count_this_turn: int = 0 # ADDED FOR STORM MECHANIC
 
         self.game_log: List[str] = []
         self.ai_agents: Dict[int, AIPlayerBase] = {} # player_id -> AIPlayerBase instance
@@ -123,7 +124,6 @@ class GameState:
         # Global effects or state modifiers
         self.replacement_effects: List[Dict[str, Any]] = [] # Store details of active replacement effects
         self.triggered_effects_queue: List[Dict[str, Any]] = [] # Effects waiting to go on stack
-
 
     def _initialize_objective_progress(self) -> Dict[str, Any]:
         progress = {

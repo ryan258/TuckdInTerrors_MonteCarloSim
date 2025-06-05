@@ -41,7 +41,7 @@ class TurnManager:
         # ActionGenerator can still be instantiated on demand in _main_phase if it's stateless
         self.action_generator = ActionGenerator()
 
-
+    
     def _begin_turn_phase(self):
         gs = self.game_state
         active_player = gs.get_active_player_state()
@@ -57,68 +57,40 @@ class TurnManager:
                 card_instance.untap()
                 gs.add_log_entry(f"Untapped '{card_instance.definition.name}' ({card_instance.instance_id}).")
         
-        # Update turns_in_play for cards controlled by active player (optional, rules dependent)
-        # Reset effects_applied_this_turn for cards controlled by active player
         for card_instance in gs.cards_in_play.values():
             if card_instance.controller_id == active_player.player_id:
-                if card_instance.turn_entered_play is not None: # Only if it has been in play
-                    # This logic might be complex depending on how "turns in play" is defined
-                    # For simplicity, we can assume it's just a counter for now or handled elsewhere
+                if card_instance.turn_entered_play is not None: 
                     pass 
                 card_instance.effects_active_this_turn.clear()
 
-
         active_player.has_played_free_toy_this_turn = False
-        # gs.storm_count_this_turn = 0 # Storm count might be player specific or global
+        gs.storm_count_this_turn = 0 # MODIFIED: Reset storm count for the new turn
         gs.nightmare_creep_effect_applied_this_turn = False
         gs.nightmare_creep_skipped_this_turn = False
 
-
-        # Mana gain - objectives can override first turn mana via game_setup
-        # Standard gain: current_turn number (e.g. turn 1 = 1 mana, turn 2 = 2 mana etc.)
-        # Let's assume mana is set to current_turn unless overridden
-        mana_this_turn = gs.current_turn + 1 
+        mana_this_turn = gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE 
         is_first_turn_mana_override = False
+
         if gs.current_turn == 1 and gs.current_objective.setup_instructions:
             setup_params = gs.current_objective.setup_instructions.params
             if "first_turn_mana_override" in setup_params:
-                # This mana should have been set during game_setup on PlayerState
-                # This block is more of a check/log if mana was indeed overridden
-                mana_this_turn = active_player.mana # Use pre-set mana
+                mana_this_turn = active_player.mana 
                 is_first_turn_mana_override = True
-                gs.add_log_entry(f"Mana for Turn 1 is {active_player.mana} (pre-set by objective).")
+                gs.add_log_entry(f"Mana for Turn 1 is {active_player.mana} (as per objective override).")
         
         if not is_first_turn_mana_override:
-            active_player.mana = mana_this_turn # Set mana to current turn number
-            gs.add_log_entry(f"Player {active_player.player_id} sets mana to {active_player.mana} for turn {gs.current_turn}.")
+            active_player.mana = mana_this_turn 
+            gs.add_log_entry(f"Player {active_player.player_id} sets mana to {active_player.mana} (Turn {gs.current_turn} + {STANDARD_MANA_GAIN_PER_TURN_BASE}).")
+        elif active_player.mana != mana_this_turn and gs.current_turn == 1 : 
+            gs.add_log_entry(f"Player {active_player.player_id} mana remains {active_player.mana} for Turn 1 (objective override). Standard gain would have been {gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE}.", level="DEBUG")
 
-
-        # Draw card
         gs.add_log_entry(f"Player {active_player.player_id} attempts to draw {STANDARD_CARDS_TO_DRAW_PER_TURN} card(s).")
-        drawn_cards = active_player.draw_cards(STANDARD_CARDS_TO_DRAW_PER_TURN, gs)
+        active_player.draw_cards(STANDARD_CARDS_TO_DRAW_PER_TURN, gs)
         
-        # Handle "WHEN_CARD_DRAWN" triggers (simplified, a real event system would be better)
-        # for drawn_card_inst in drawn_cards:
-        #     if drawn_card_inst.definition.effects:
-        #         for effect_obj in drawn_card_inst.definition.effects:
-        #             if effect_obj.trigger == EffectTriggerType.WHEN_CARD_DRAWN: # This trigger type isn't on Effect itself
-        #                 # This needs a global trigger check or specific card ability
-        #                 pass
-        # A general WHEN_CARD_DRAWN event for other cards to react to:
-        # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.WHEN_CARD_DRAWN, gs, active_player, {'drawn_cards': drawn_cards})
-
-
-        # Nightmare Creep
         if self.nightmare_module.apply_nightmare_creep_for_current_turn():
-            # This would trigger WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER
-            # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.WHEN_NIGHTMARE_CREEP_APPLIES_TO_PLAYER, gs, active_player)
-            pass # Logging is inside apply_nightmare_creep_for_current_turn
+            pass 
         else:
             gs.add_log_entry("Nightmare Creep not active or skipped this turn.")
-
-        # Begin player turn effects
-        # self.effect_engine.resolve_triggers_for_event(EffectTriggerType.BEGIN_PLAYER_TURN, gs, active_player)
-
 
     def _main_phase(self): # AI player is now fetched from game_state
         gs = self.game_state

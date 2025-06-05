@@ -185,7 +185,19 @@ class EffectEngine:
             count = params.get("count", 1)
             player.spirit_tokens += count
             game_state.add_log_entry(f"P{player.player_id} creates {count} Spirit(s). Total: {player.spirit_tokens}")
-
+        
+        elif action_type == EffectActionType.CREATE_SPIRITS_FROM_STORM_COUNT: # ADDED BLOCK
+            storm_value = game_state.storm_count_this_turn # Reads count of spells cast *before* this one
+            amount_per_storm = params.get("amount_per_storm", 1)
+            spirits_from_storm = storm_value * amount_per_storm
+            
+            if spirits_from_storm > 0:
+                player.spirit_tokens += spirits_from_storm
+                game_state.objective_progress["spirits_created_total_game"] = game_state.objective_progress.get("spirits_created_total_game", 0) + spirits_from_storm # Also update objective progress
+                game_state.add_log_entry(f"Storm count is {storm_value}. P{player.player_id} creates {spirits_from_storm} Spirit(s) from Storm. Total Spirits: {player.spirit_tokens}")
+            else:
+                game_state.add_log_entry(f"Storm count is {storm_value}. No additional Spirits created from Storm.", "EFFECT_DEBUG")
+        
         elif action_type == EffectActionType.CREATE_MEMORY_TOKENS:
             count = params.get("count", 1)
             player.memory_tokens += count
