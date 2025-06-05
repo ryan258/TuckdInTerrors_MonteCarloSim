@@ -4,6 +4,8 @@ import pytest
 from unittest.mock import MagicMock, patch
 from typing import Dict, List, Optional, Any, Tuple # Added Dict here
 
+from tuck_in_terrors_sim.game_elements.data_loaders import GameData # <<< ADD THIS LINE
+
 # Game elements
 from tuck_in_terrors_sim.game_elements.card import Card, Toy, Spell, Ritual, Effect, EffectAction, CardInstance
 from tuck_in_terrors_sim.game_elements.objective import ObjectiveCard
@@ -24,21 +26,45 @@ def mock_effect_engine() -> MagicMock:
 def empty_objective_card() -> ObjectiveCard:
     return ObjectiveCard(objective_id="test_obj", title="Test Objective", difficulty="easy", nightfall_turn=10)
 
+# tests/game_logic/test_action_resolver.py
+
 @pytest.fixture
-def card_defs_for_resolver() -> Dict[str, Card]: # Type hint 'Dict' is now defined
-    dummy_action = EffectAction(action_type=EffectActionType.DRAW_CARDS, params={"count": 1})
+def card_defs_for_resolver() -> Dict[str, Card]:
+    """A curated, simplified set of cards for testing the action_resolver more directly."""
+    
+    # A toy with two distinct ACTIVATED_ABILITY effects
+    act_toy_effects = [
+        Effect(
+            effect_id="act1",
+            trigger=EffectTriggerType.ACTIVATED_ABILITY,
+            cost={"mana": 1},
+            actions=[EffectAction(action_type=EffectActionType.CREATE_MEMORY_TOKENS, params={"count": 1})],
+            description="Pay 1 Mana: Create 1 Memory Token."
+        ),
+        Effect(
+            effect_id="act2_tap",
+            trigger=EffectTriggerType.ACTIVATED_ABILITY,
+            cost={"tap_self": True},
+            actions=[EffectAction(action_type=EffectActionType.DRAW_CARDS, params={"count": 1})],
+            description="Tap: Draw a card."
+        )
+    ]
+    act_toy = Card(card_id="act_toy", name="Activatable Toy", type=CardType.TOY, cost_mana=1, effects=act_toy_effects)
+
+    # Define simple cards for other tests directly
+    toy1_effects = [Effect(effect_id="toy1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[EffectAction(action_type=EffectActionType.CREATE_SPIRIT_TOKENS, params={"count": 1})])]
+    toy1 = Card(card_id="toy1", name="Test Toy", type=CardType.TOY, cost_mana=1, effects=toy1_effects)
+    
+    spell1_effects = [Effect(effect_id="spell1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[EffectAction(action_type=EffectActionType.ADD_MANA, params={"amount": 1})])]
+    spell1 = Card(card_id="spell1", name="Test Spell", type=CardType.SPELL, cost_mana=2, effects=spell1_effects)
+
+    ritual1 = Card(card_id="ritual1", name="Test Ritual", type=CardType.RITUAL, cost_mana=3, effects=[])
+
     return {
-        "toy1": Toy(card_id="toy1", name="Test Toy", type=CardType.TOY, cost_mana=1, 
-                    effects=[Effect(effect_id="toy1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
-        "spell1": Spell(card_id="spell1", name="Test Spell", type=CardType.SPELL, cost_mana=2,
-                       effects=[Effect(effect_id="spell1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
-        "ritual1": Ritual(card_id="ritual1", name="Test Ritual", type=CardType.RITUAL, cost_mana=3,
-                         effects=[Effect(effect_id="ritual1_onplay", trigger=EffectTriggerType.ON_PLAY, actions=[dummy_action])]),
-        "activatable_toy": Toy(card_id="act_toy", name="Activatable Toy", type=CardType.TOY, cost_mana=1,
-                               effects=[
-                                   Effect(effect_id="act1", trigger=EffectTriggerType.ACTIVATED_ABILITY, actions=[dummy_action], description="Ability 1"),
-                                   Effect(effect_id="tap_ab", trigger=EffectTriggerType.TAP_ABILITY, actions=[dummy_action], description="Tap Ability")
-                               ])
+        "activatable_toy": act_toy,
+        "toy1": toy1,
+        "spell1": spell1,
+        "ritual1": ritual1
     }
 
 @pytest.fixture
@@ -197,15 +223,29 @@ class TestActionResolverPlayCard:
         act_toy_inst = CardInstance(definition=act_toy_def, owner_id=player.player_id, current_zone=Zone.IN_PLAY)
         gs.cards_in_play[act_toy_inst.instance_id] = act_toy_inst
         player.zones[Zone.IN_PLAY].append(act_toy_inst)
+        
+        player.mana = 1  # <<< THIS IS THE FIX: Provide mana for the ability cost
 
         success = action_resolver.activate_ability(act_toy_inst.instance_id, effect_index=0)
         assert success is True
+
+        # Verify mana was spent
+        assert player.mana == 0
+        
+        expected_event_context = {
+            'event_type': 'ABILITY_ACTIVATED',
+            'source_card_instance_id': act_toy_inst.instance_id,
+            'source_card_definition_id': act_toy_def.card_id,
+            'activated_effect_id': act_toy_def.effects[0].effect_id,
+            'player_id': player.player_id,
+            'targets': None
+        }
         mock_effect_engine.resolve_effect.assert_called_once_with(
             effect=act_toy_def.effects[0],
             game_state=gs,
             player=player,
             source_card_instance=act_toy_inst,
-            triggering_event_context={'activated_ability_on_instance_id': act_toy_inst.instance_id, 'targets': None}
+            triggering_event_context=expected_event_context
         )
 
     def test_activate_tap_ability_when_untapped(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card], mock_effect_engine: MagicMock):
@@ -221,8 +261,26 @@ class TestActionResolverPlayCard:
 
         success = action_resolver.activate_ability(act_toy_inst.instance_id, effect_index=1) # Index 1 is TAP_ABILITY
         assert success is True
+        
+        # Verify the card is now tapped
         assert act_toy_inst.is_tapped is True
-        mock_effect_engine.resolve_effect.assert_called_once()
+
+        # Verify the effect was called with the correct context
+        expected_event_context = {
+            'event_type': 'ABILITY_ACTIVATED',
+            'source_card_instance_id': act_toy_inst.instance_id,
+            'source_card_definition_id': act_toy_def.card_id,
+            'activated_effect_id': act_toy_def.effects[1].effect_id,
+            'player_id': player.player_id,
+            'targets': None
+        }
+        mock_effect_engine.resolve_effect.assert_called_once_with(
+            effect=act_toy_def.effects[1],
+            game_state=gs,
+            player=player,
+            source_card_instance=act_toy_inst,
+            triggering_event_context=expected_event_context
+        )
 
     def test_activate_tap_ability_when_already_tapped_fails(self, action_resolver: ActionResolver, game_state_for_actions: GameState, card_defs_for_resolver: Dict[str, Card]):
         gs = game_state_for_actions
