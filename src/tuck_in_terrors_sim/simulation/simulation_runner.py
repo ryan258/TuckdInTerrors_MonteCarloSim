@@ -1,10 +1,11 @@
 # src/tuck_in_terrors_sim/simulation/simulation_runner.py
 
-from typing import Optional
+import copy
+from typing import Optional, Tuple, List
 
 # Game data and elements
 from ..game_elements.data_loaders import GameData
-from ..game_elements.enums import Zone, EffectTriggerType  # <-- FIX IS HERE
+from ..game_elements.enums import Zone, EffectTriggerType
 
 # Game logic components
 from ..game_logic.game_state import GameState
@@ -26,11 +27,6 @@ class SimulationRunner:
     """Orchestrates running one or more game simulations."""
 
     def __init__(self, game_data: GameData):
-        """
-        Initializes the SimulationRunner with all necessary static game data.
-        Args:
-            game_data: A GameData object containing all card and objective definitions.
-        """
         self.game_data = game_data
 
     def _get_ai_profile(self, ai_profile_name: str, player_id: int) -> Optional[AIPlayerBase]:
@@ -45,31 +41,22 @@ class SimulationRunner:
             print(f"Warning: Unknown AI profile '{ai_profile_name}'.")
             return None
 
-    def run_one_game(self, objective_id: str, ai_profile_name: str) -> Optional[GameState]:
+    def run_one_game(self, objective_id: str, ai_profile_name: str, detailed_logging: bool = False) -> Tuple[Optional[GameState], List[GameState]]:
         """
         Runs a single complete game simulation from setup to a win/loss condition.
-        Args:
-            objective_id: The ID of the objective to simulate.
-            ai_profile_name: The name of the AI profile to use for the player.
-        Returns:
-            The final GameState object after the game has concluded, or None if setup fails.
         """
         objective = self.game_data.get_objective_by_id(objective_id)
         if not objective:
-            print(f"Error: Objective '{objective_id}' not found.")
-            return None
+            return None, []
 
-        # 1. Initialize GameState
         game_state = initialize_new_game(objective, self.game_data.cards_by_id)
+        game_snapshots: List[GameState] = []
 
-        # 2. Initialize AI
         ai_player = self._get_ai_profile(ai_profile_name, DEFAULT_PLAYER_ID)
         if not ai_player:
-            print(f"Error: Could not create AI profile '{ai_profile_name}'.")
-            return None
+            return None, []
         game_state.ai_agents[DEFAULT_PLAYER_ID] = ai_player
 
-        # 3. Initialize Game Logic Modules
         win_loss_checker = WinLossChecker(game_state)
         effect_engine = EffectEngine(game_state, win_loss_checker)
         action_resolver = ActionResolver(game_state, effect_engine, win_loss_checker)
@@ -82,37 +69,31 @@ class SimulationRunner:
             win_loss_checker=win_loss_checker
         )
 
-        # 4. Post-Setup Effect Resolution
-        game_state.add_log_entry("--- Resolving Post-Setup Effects ---", "SIM_INFO")
-        
-        # *** FIX IS HERE: Correctly get cards from the player's IN_PLAY zone ***
         active_player_state = game_state.get_active_player_state()
         if active_player_state:
-            # Create a copy of the list to safely iterate over it
             cards_starting_in_play = list(active_player_state.zones[Zone.IN_PLAY])
             for card_instance in cards_starting_in_play:
                 for effect in card_instance.definition.effects:
                     if effect.trigger == EffectTriggerType.ON_PLAY:
-                         effect_engine.resolve_effect(
-                             effect=effect,
-                             game_state=game_state,
-                             player=active_player_state,
-                             source_card_instance=card_instance
-                         )
-        
+                        effect_engine.resolve_effect(
+                            effect=effect, game_state=game_state, player=active_player_state,
+                            source_card_instance=card_instance
+                        )
         if win_loss_checker.check_all_conditions():
             game_state.game_over = True
 
-        # 5. Main Game Loop
-        game_state.add_log_entry(f"--- Simulation Start: Objective '{objective.title}', AI '{ai_profile_name}' ---", "SIM_INFO")
-        max_turns = 100 
+        if detailed_logging:
+            game_snapshots.append(copy.deepcopy(game_state))
+
+        max_turns = 100
         while not game_state.game_over and game_state.current_turn <= max_turns:
             turn_manager.execute_full_turn()
+            if detailed_logging:
+                game_snapshots.append(copy.deepcopy(game_state))
 
-        if game_state.current_turn > max_turns:
+        if game_state.current_turn > max_turns and not game_state.game_over:
             game_state.add_log_entry(f"Simulation ended: Exceeded max turns ({max_turns}).", "SIM_WARNING")
             game_state.game_over = True
             game_state.win_status = "LOSS_MAX_TURNS"
 
-        game_state.add_log_entry(f"--- Simulation End: {game_state.win_status} on Turn {game_state.current_turn} ---", "SIM_INFO")
-        return game_state
+        return game_state, game_snapshots
