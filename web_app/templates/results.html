@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulation Results - Tuck'd-In Terrors</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .stat-card {
+            transition: transform 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+        }
+        .progress-ring {
+            transition: stroke-dashoffset 0.5s ease;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <div class="gradient-bg text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <h1 class="text-3xl font-bold">Simulation Results</h1>
+            <p class="text-purple-100 mt-1">{{ objective_name }} - {{ ai_profile }}</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Loading State -->
+        <div id="loadingState" class="text-center py-12">
+            <svg class="animate-spin h-12 w-12 text-purple-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-gray-600">Loading results...</p>
+        </div>
+
+        <!-- Results Content (hidden until loaded) -->
+        <div id="resultsContent" class="hidden">
+            <!-- Action Bar -->
+            <div class="bg-white rounded-lg shadow-md p-4 mb-6 flex justify-between items-center">
+                <div>
+                    <span class="text-sm text-gray-500">Total Simulations:</span>
+                    <span id="totalSims" class="text-lg font-bold text-purple-600 ml-2">{{ num_simulations }}</span>
+                </div>
+                <div class="space-x-3">
+                    <a href="/" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition duration-200">
+                        New Simulation
+                    </a>
+                    <button id="downloadBtn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition duration-200">
+                        Download JSON
+                    </button>
+                </div>
+            </div>
+
+            <!-- Win Rate Overview -->
+            <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Win Rate Overview</h2>
+                <div class="grid md:grid-cols-3 gap-6">
+                    <!-- Overall Win Rate -->
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <span id="winRatePercent" class="text-5xl font-bold text-green-600">--%</span>
+                        </div>
+                        <p class="text-gray-600 font-medium">Overall Win Rate</p>
+                        <div class="mt-2">
+                            <div class="w-full bg-gray-200 rounded-full h-2">
+                                <div id="winRateBar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Wins -->
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <span id="totalWins" class="text-5xl font-bold text-blue-600">--</span>
+                        </div>
+                        <p class="text-gray-600 font-medium">Total Wins</p>
+                        <p id="winBreakdown" class="text-sm text-gray-500 mt-2">--</p>
+                    </div>
+
+                    <!-- Total Losses -->
+                    <div class="text-center">
+                        <div class="mb-2">
+                            <span id="totalLosses" class="text-5xl font-bold text-red-600">--</span>
+                        </div>
+                        <p class="text-gray-600 font-medium">Total Losses</p>
+                        <p id="lossBreakdown" class="text-sm text-gray-500 mt-2">--</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid md:grid-cols-4 gap-6 mb-6">
+                <!-- Average Turns (Wins) -->
+                <div class="bg-white rounded-lg shadow-md p-6 stat-card">
+                    <div class="text-sm text-gray-500 mb-1">Avg Turns (Wins)</div>
+                    <div id="avgTurnsWins" class="text-3xl font-bold text-green-600">--</div>
+                </div>
+
+                <!-- Average Turns (Losses) -->
+                <div class="bg-white rounded-lg shadow-md p-6 stat-card">
+                    <div class="text-sm text-gray-500 mb-1">Avg Turns (Losses)</div>
+                    <div id="avgTurnsLosses" class="text-3xl font-bold text-red-600">--</div>
+                </div>
+
+                <!-- Fastest Win -->
+                <div class="bg-white rounded-lg shadow-md p-6 stat-card">
+                    <div class="text-sm text-gray-500 mb-1">Fastest Win</div>
+                    <div id="fastestWin" class="text-3xl font-bold text-blue-600">--</div>
+                </div>
+
+                <!-- Slowest Win -->
+                <div class="bg-white rounded-lg shadow-md p-6 stat-card">
+                    <div class="text-sm text-gray-500 mb-1">Slowest Win</div>
+                    <div id="slowestWin" class="text-3xl font-bold text-purple-600">--</div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div id="chartsSection" class="hidden">
+                <div class="grid md:grid-cols-2 gap-6 mb-6">
+                    <!-- Pie Chart -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Win/Loss Distribution</h3>
+                        <img id="pieChart" src="" alt="Win/Loss Pie Chart" class="w-full">
+                    </div>
+
+                    <!-- Histogram -->
+                    <div class="bg-white rounded-lg shadow-md p-6">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Turn Distribution</h3>
+                        <img id="histogram" src="" alt="Turn Distribution Histogram" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scorecard -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-4">Performance Scorecard</h2>
+                <div class="bg-gray-900 rounded-lg p-6 overflow-x-auto">
+                    <pre id="scorecardContent" class="text-gray-100 text-sm font-mono">Loading scorecard...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const simId = '{{ sim_id }}';
+
+        async function loadResults() {
+            try {
+                const response = await fetch(`/results/${simId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load results');
+                }
+
+                const data = await response.json();
+
+                // Hide loading, show content
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('resultsContent').classList.remove('hidden');
+
+                // Populate summary stats
+                const summary = data.summary;
+
+                // Win Rate
+                const winRate = summary.win_rate.toFixed(2);
+                document.getElementById('winRatePercent').textContent = `${winRate}%`;
+                document.getElementById('winRateBar').style.width = `${winRate}%`;
+
+                // Total Wins/Losses
+                document.getElementById('totalWins').textContent = summary.total_wins;
+                document.getElementById('totalLosses').textContent = summary.total_losses;
+
+                // Win/Loss Breakdown
+                const primaryWins = summary.win_by_status.PRIMARY_WIN || 0;
+                const altWins = summary.win_by_status.ALTERNATIVE_WIN || 0;
+                document.getElementById('winBreakdown').textContent =
+                    `Primary: ${primaryWins} | Alt: ${altWins}`;
+
+                const lossTypes = Object.entries(summary.loss_by_reason || {})
+                    .map(([reason, count]) => `${reason}: ${count}`)
+                    .join(' | ') || 'N/A';
+                document.getElementById('lossBreakdown').textContent = lossTypes;
+
+                // Turn Statistics
+                document.getElementById('avgTurnsWins').textContent =
+                    summary.avg_turns_wins ? summary.avg_turns_wins.toFixed(1) : '--';
+                document.getElementById('avgTurnsLosses').textContent =
+                    summary.avg_turns_losses ? summary.avg_turns_losses.toFixed(1) : '--';
+                document.getElementById('fastestWin').textContent =
+                    summary.min_turns_wins ? `Turn ${summary.min_turns_wins}` : '--';
+                document.getElementById('slowestWin').textContent =
+                    summary.max_turns_wins ? `Turn ${summary.max_turns_wins}` : '--';
+
+                // Scorecard
+                document.getElementById('scorecardContent').textContent = data.scorecard;
+
+                // Charts
+                if (data.has_charts) {
+                    document.getElementById('chartsSection').classList.remove('hidden');
+                    document.getElementById('pieChart').src = `/chart/${simId}/pie`;
+                    document.getElementById('histogram').src = `/chart/${simId}/histogram`;
+                }
+
+                // Download button
+                document.getElementById('downloadBtn').onclick = () => {
+                    window.location.href = `/download/${simId}`;
+                };
+
+            } catch (error) {
+                console.error('Error loading results:', error);
+                document.getElementById('loadingState').innerHTML = `
+                    <div class="text-red-600">
+                        <svg class="h-12 w-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <p class="font-semibold">Failed to load results</p>
+                        <p class="text-sm text-gray-500 mt-2">${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Load results on page load
+        document.addEventListener('DOMContentLoaded', loadResults);
+    </script>
+</body>
+</html>
