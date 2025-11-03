@@ -12,6 +12,7 @@ This repository contains a high-performance Monte Carlo simulation platform for 
 - **All 8 Objectives Implemented:** Complete support for all game objectives with fully functional win condition tracking.
 - **31-Card Library:** Comprehensive card collection including Toys, Spells, and Rituals supporting all strategies.
 - **Statistical Analysis:** Automatically calculates and displays key metrics after each batch run, including win rates, outcome breakdowns, average game length, and objective-specific progress.
+- **Automatic Scorecards:** Every simulation generates an executive-summary scorecard with performance grades, visual metrics, key insights, and actionable recommendations.
 - **Game Balance Analysis:** Advanced balance analyzer with objective difficulty comparison, AI performance metrics, win rate curves, and outlier detection.
 - **Data Export:** Save the detailed results of every game in a simulation batch to a structured JSON file for external analysis.
 - **Result Visualization:** Automatically generate and save plots, including win/loss pie charts and game length histograms, to visually interpret the results.
@@ -78,3 +79,48 @@ This will produce a detailed report including:
 - Statistical summaries
 
 The report is displayed in the console and saved to `results/balance_report_<objective>_<ai>.txt`.
+
+### Understanding Your Scorecard
+
+Every simulation automatically generates a scorecard with:
+- **Performance Grade** (A-F) based on win rate
+- **Visual metrics** with progress bars and turn distributions
+- **Key Insights** identifying strengths and concerns
+- **Recommendations** for improving objective balance
+
+Example output:
+```
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                          SIMULATION SCORECARD                                ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+Objective: OBJ01_THE_FIRST_NIGHT
+AI Profile: scoring_ai
+Games Simulated: 1,000
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PERFORMANCE SUMMARY                                                          │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  Overall Win Rate:  45.30%   [██████████████████░░░░░░░░░░░░░░░░░░░░░░░░░]  │
+│  Performance Grade:      B     ★★★★☆                                         │
+│                                                                              │
+│  Wins:                453   (45.3%)                                          │
+│    ├─ Primary:        420   (42.0%)                                          │
+│    └─ Alternative:     33   ( 3.3%)                                          │
+│                                                                              │
+│  Losses:              547   (54.7%)                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+KEY INSIGHTS:
+  ✓  Win rate is WITHIN target range for Easy difficulty
+  ✓  Wins occur faster than losses (efficient strategy)
+  ⏰ Most losses due to Nightfall (time pressure is main challenge)
+
+RECOMMENDATIONS:
+  No immediate concerns detected!
+  Objective appears well-balanced for current difficulty.
+```
+
+To disable the scorecard, use `--no-scorecard` flag.
+Scorecards are automatically saved to `results/scorecard_<objective>_<ai>.txt`.

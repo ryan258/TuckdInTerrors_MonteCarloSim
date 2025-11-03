@@ -14,6 +14,7 @@ from src.tuck_in_terrors_sim.simulation.data_logger import DataLogger
 from src.tuck_in_terrors_sim.simulation.analysis_engine import AnalysisEngine
 from src.tuck_in_terrors_sim.simulation.visualizer import Visualizer
 from src.tuck_in_terrors_sim.simulation.balance_analyzer import BalanceAnalyzer
+from src.tuck_in_terrors_sim.simulation.scorecard_generator import ScorecardGenerator
 from src.tuck_in_terrors_sim.game_elements.data_loaders import load_all_game_data
 
 
@@ -68,6 +69,7 @@ def main_cli():
     parser.add_argument("--output-dir", type=str, default="results", help="Directory to save output files (JSON, plots).")
     parser.add_argument("--deep-dive", type=int, metavar='N', default=0, help="Run N simulations with detailed turn-by-turn logging before the main batch.")
     parser.add_argument("--balance-report", action="store_true", help="Generate a comprehensive game balance analysis report.")
+    parser.add_argument("--no-scorecard", action="store_true", help="Disable automatic scorecard generation (enabled by default).")
 
     args = parser.parse_args()
 
@@ -110,6 +112,28 @@ def main_cli():
         results_data = logger.get_results()
         if results_data:
             analyzer.calculate_and_print_summary(results_data)
+
+            # Generate scorecard (unless disabled)
+            if not args.no_scorecard:
+                print("\n")
+                scorecard_gen = ScorecardGenerator()
+
+                # Get objective difficulty
+                objective = game_data.get_objective_by_id(args.objective)
+                difficulty = objective.difficulty if objective else None
+
+                scorecard = scorecard_gen.generate_scorecard(
+                    results_data,
+                    args.objective,
+                    args.ai,
+                    difficulty
+                )
+                print(scorecard)
+
+                # Save scorecard to file
+                if args.output_dir:
+                    scorecard_file = os.path.join(args.output_dir, f"scorecard_{args.objective}_{args.ai}.txt")
+                    scorecard_gen.save_scorecard(scorecard, scorecard_file)
 
             # Generate balance report if requested
             if args.balance_report:
