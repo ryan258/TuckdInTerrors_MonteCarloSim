@@ -127,11 +127,39 @@ class GameState:
 
     def _initialize_objective_progress(self) -> Dict[str, Any]:
         progress = {
+            # OBJ01: The First Night
             "toys_played_this_game_count": 0,
             "distinct_toys_played_ids": set(),
             "spirits_created_total_game": 0,
             "mana_from_card_effects_total_game": 0,
+
+            # OBJ02: Whisper Wake (uses spirits_created_total_game)
+
+            # OBJ03: Choir of Forgotten Things
+            "spirit_generating_cards_in_play": set(),
+
+            # OBJ04: Loop Too Much
+            "max_toy_loops_this_turn": 0,
+            "toy_loop_counts": {},  # {toy_instance_id: loop_count_this_turn}
+            "different_toys_returned_from_discard": set(),
+
+            # OBJ05: Threadbare Moon
+            "first_memory_reanimations": 0,
+            "different_toys_reanimated": set(),
+
+            # OBJ06: Creaking Choirbox
+            "different_spells_cast_this_turn": set(),
+            "different_spells_played_game": set(),
+
+            # OBJ07: Stitched Infinity
+            "toys_sacrificed_game": 0,
+
+            # OBJ08: Wild Night
+            "whispering_doll_total_rolls": 0,
+            "memory_tokens_spent_game": 0,
+            "cards_played_from_exile": 0,
         }
+
         if self.current_objective and self.current_objective.primary_win_condition:
             pwc_params = self.current_objective.primary_win_condition.params
             pwc_type = self.current_objective.primary_win_condition.component_type

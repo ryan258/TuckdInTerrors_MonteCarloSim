@@ -2,6 +2,7 @@
 # Functions to check objective completion & Nightfall
 
 from typing import TYPE_CHECKING, Optional
+from ..game_elements.enums import Zone
 
 if TYPE_CHECKING:
     from .game_state import GameState
@@ -111,8 +112,137 @@ class WinLossChecker:
             gs.add_log_entry(f"  CREATE_TOTAL_X_SPIRITS_GAME check: Created {total_spirits_created}/{spirits_needed} total spirits.", level="DEBUG")
             if total_spirits_created >= spirits_needed:
                 condition_met = True
-        
-        # Add more win condition handlers here for other component_types (Phase 4)
+
+        elif component_type == "CONTROL_X_SPIRITS_AT_ONCE":
+            # OBJ03: Control 7+ Spirits at once
+            spirits_needed = params.get("spirits_needed", 0)
+            active_player = gs.get_active_player_state()
+            current_spirits = active_player.spirit_tokens if active_player else 0
+
+            gs.add_log_entry(f"  CONTROL_X_SPIRITS_AT_ONCE check: Have {current_spirits}/{spirits_needed} spirits.", level="DEBUG")
+            if current_spirits >= spirits_needed:
+                condition_met = True
+
+        elif component_type == "CONTROL_X_DIFFERENT_SPIRIT_GENERATING_CARDS_IN_PLAY":
+            # OBJ03 alt: Have 3+ different cards that generate Spirits in play
+            cards_needed = params.get("cards_needed", 0)
+            spirit_generating_cards = gs.objective_progress.get("spirit_generating_cards_in_play", set())
+
+            gs.add_log_entry(f"  CONTROL_X_DIFFERENT_SPIRIT_GENERATING_CARDS_IN_PLAY check: Have {len(spirit_generating_cards)}/{cards_needed} cards.", level="DEBUG")
+            if len(spirit_generating_cards) >= cards_needed:
+                condition_met = True
+
+        elif component_type == "LOOP_TOY_X_TIMES_IN_TURN":
+            # OBJ04: Loop one Toy 5+ times in a single turn
+            loops_needed = params.get("toy_loops_needed", 0)
+            max_loops_this_turn = gs.objective_progress.get("max_toy_loops_this_turn", 0)
+
+            gs.add_log_entry(f"  LOOP_TOY_X_TIMES_IN_TURN check: Max loops this turn {max_loops_this_turn}/{loops_needed}.", level="DEBUG")
+            if max_loops_this_turn >= loops_needed:
+                condition_met = True
+
+        elif component_type == "RETURN_X_DIFFERENT_TOYS_FROM_DISCARD_TO_HAND_GAME":
+            # OBJ04 alt: Return 6 different Toys from discard to hand during game
+            toys_needed = params.get("toys_needed", 0)
+            toys_returned = gs.objective_progress.get("different_toys_returned_from_discard", set())
+
+            gs.add_log_entry(f"  RETURN_X_DIFFERENT_TOYS_FROM_DISCARD_TO_HAND_GAME check: Returned {len(toys_returned)}/{toys_needed} toys.", level="DEBUG")
+            if len(toys_returned) >= toys_needed:
+                condition_met = True
+
+        elif component_type == "REANIMATE_FIRST_MEMORY_X_TIMES":
+            # OBJ05: Reanimate your First Memory 3 times
+            reanimations_needed = params.get("reanimations_needed", 0)
+            fm_reanimations = gs.objective_progress.get("first_memory_reanimations", 0)
+
+            gs.add_log_entry(f"  REANIMATE_FIRST_MEMORY_X_TIMES check: Reanimated FM {fm_reanimations}/{reanimations_needed} times.", level="DEBUG")
+            if fm_reanimations >= reanimations_needed:
+                condition_met = True
+
+        elif component_type == "REANIMATE_X_DIFFERENT_TOYS_GAME":
+            # OBJ05 alt: Reanimate 4 different Toys over the game
+            toys_needed = params.get("toys_needed", 0)
+            toys_reanimated = gs.objective_progress.get("different_toys_reanimated", set())
+
+            gs.add_log_entry(f"  REANIMATE_X_DIFFERENT_TOYS_GAME check: Reanimated {len(toys_reanimated)}/{toys_needed} different toys.", level="DEBUG")
+            if len(toys_reanimated) >= toys_needed:
+                condition_met = True
+
+        elif component_type == "CAST_X_DIFFERENT_NON_TOY_SPELLS_IN_TURN":
+            # OBJ06: Cast 5 different non-Toy spells in a single turn
+            spells_needed = params.get("spells_needed", 0)
+            spells_this_turn = gs.objective_progress.get("different_spells_cast_this_turn", set())
+
+            gs.add_log_entry(f"  CAST_X_DIFFERENT_NON_TOY_SPELLS_IN_TURN check: Cast {len(spells_this_turn)}/{spells_needed} spells this turn.", level="DEBUG")
+            if len(spells_this_turn) >= spells_needed:
+                condition_met = True
+
+        elif component_type == "PLAY_X_DIFFERENT_NON_TOY_SPELLS_GAME":
+            # OBJ06 alt: Play 8 different non-Toy spells over the game
+            spells_needed = params.get("spells_needed", 0)
+            spells_played = gs.objective_progress.get("different_spells_played_game", set())
+
+            gs.add_log_entry(f"  PLAY_X_DIFFERENT_NON_TOY_SPELLS_GAME check: Played {len(spells_played)}/{spells_needed} different spells.", level="DEBUG")
+            if len(spells_played) >= spells_needed:
+                condition_met = True
+
+        elif component_type == "EMPTY_DECK_WITH_CARDS_IN_PLAY":
+            # OBJ07: Empty your deck with 3+ Toys and 2+ Rituals in play
+            min_toys = params.get("min_toys_in_play", 0)
+            min_rituals = params.get("min_rituals_in_play", 0)
+
+            active_player = gs.get_active_player_state()
+            if active_player:
+                deck_empty = len(active_player.zones[Zone.DECK]) == 0
+
+                from ..game_elements.enums import CardType
+                toys_in_play = sum(1 for card in gs.cards_in_play.values()
+                                  if card.definition.type == CardType.TOY
+                                  and card.controller_id == active_player.player_id)
+                rituals_in_play = sum(1 for card in gs.cards_in_play.values()
+                                     if card.definition.type == CardType.RITUAL
+                                     and card.controller_id == active_player.player_id)
+
+                gs.add_log_entry(f"  EMPTY_DECK_WITH_CARDS_IN_PLAY check: Deck empty={deck_empty}, Toys={toys_in_play}/{min_toys}, Rituals={rituals_in_play}/{min_rituals}.", level="DEBUG")
+                if deck_empty and toys_in_play >= min_toys and rituals_in_play >= min_rituals:
+                    condition_met = True
+
+        elif component_type == "SACRIFICE_X_TOYS_GAME":
+            # OBJ07 alt: Sacrifice 8+ Toys over the game
+            toys_needed = params.get("toys_needed", 0)
+            toys_sacrificed = gs.objective_progress.get("toys_sacrificed_game", 0)
+
+            gs.add_log_entry(f"  SACRIFICE_X_TOYS_GAME check: Sacrificed {toys_sacrificed}/{toys_needed} toys.", level="DEBUG")
+            if toys_sacrificed >= toys_needed:
+                condition_met = True
+
+        elif component_type == "ROLL_TOTAL_X_ON_CARD_AND_HAVE_Y_MEMORY_TOKENS":
+            # OBJ08: Roll total of 10+ on specific card AND have 1+ Memory Token
+            total_roll_needed = params.get("total_roll_needed", 0)
+            memory_tokens_needed = params.get("memory_tokens_needed", 0)
+
+            total_rolls = gs.objective_progress.get("whispering_doll_total_rolls", 0)
+            active_player = gs.get_active_player_state()
+            memory_tokens = active_player.memory_tokens if active_player else 0
+
+            # Also count spent tokens if configured
+            if params.get("memory_tokens_spent_count", False):
+                memory_tokens += gs.objective_progress.get("memory_tokens_spent_game", 0)
+
+            gs.add_log_entry(f"  ROLL_TOTAL_X_ON_CARD_AND_HAVE_Y_MEMORY_TOKENS check: Rolls={total_rolls}/{total_roll_needed}, Memory={memory_tokens}/{memory_tokens_needed}.", level="DEBUG")
+            if total_rolls >= total_roll_needed and memory_tokens >= memory_tokens_needed:
+                condition_met = True
+
+        elif component_type == "PLAY_X_CARDS_FROM_EXILE_GAME":
+            # OBJ08 alt: Play 5+ cards from exile during the game
+            cards_needed = params.get("cards_needed", 0)
+            cards_played = gs.objective_progress.get("cards_played_from_exile", 0)
+
+            gs.add_log_entry(f"  PLAY_X_CARDS_FROM_EXILE_GAME check: Played {cards_played}/{cards_needed} cards from exile.", level="DEBUG")
+            if cards_played >= cards_needed:
+                condition_met = True
+
+        # Add more win condition handlers here for future objectives
         else:
             gs.add_log_entry(f"Win condition type '{component_type}' not yet implemented in WinLossChecker.", level="WARNING")
 

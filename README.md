@@ -9,7 +9,10 @@ This repository contains a high-performance Monte Carlo simulation platform for 
   - `random_ai`: Makes completely random valid moves.
   - `greedy_ai`: Prioritizes a single aspect of the win condition.
   - `scoring_ai`: Uses a weighted scoring system to make more balanced, intelligent decisions.
+- **All 8 Objectives Implemented:** Complete support for all game objectives with fully functional win condition tracking.
+- **31-Card Library:** Comprehensive card collection including Toys, Spells, and Rituals supporting all strategies.
 - **Statistical Analysis:** Automatically calculates and displays key metrics after each batch run, including win rates, outcome breakdowns, average game length, and objective-specific progress.
+- **Game Balance Analysis:** Advanced balance analyzer with objective difficulty comparison, AI performance metrics, win rate curves, and outlier detection.
 - **Data Export:** Save the detailed results of every game in a simulation batch to a structured JSON file for external analysis.
 - **Result Visualization:** Automatically generate and save plots, including win/loss pie charts and game length histograms, to visually interpret the results.
 - **Deep Dive Logging:** Isolate and analyze AI behavior with a detailed, turn-by-turn "play-by-play" report for a specified number of games.
@@ -58,3 +61,20 @@ To run a standard batch of 1000 simulations with the `scoring_ai`:
 ```bash
 python main.py --objective OBJ01_THE_FIRST_NIGHT --simulations 1000 --ai scoring_ai
 ```
+
+### Game Balance Analysis
+
+Generate a comprehensive balance analysis report:
+
+```bash
+python main.py --objective OBJ01_THE_FIRST_NIGHT --simulations 1000 --ai scoring_ai --balance-report
+```
+
+This will produce a detailed report including:
+- Objective difficulty metrics
+- AI performance comparison
+- Win rate progression by turn
+- Outlier detection (unusually fast/slow games)
+- Statistical summaries
+
+The report is displayed in the console and saved to `results/balance_report_<objective>_<ai>.txt`.

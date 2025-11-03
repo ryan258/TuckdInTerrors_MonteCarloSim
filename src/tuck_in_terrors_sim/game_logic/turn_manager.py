@@ -67,9 +67,14 @@ class TurnManager:
 
 
         active_player.has_played_free_toy_this_turn = False
-        gs.storm_count_this_turn = 0 
+        gs.storm_count_this_turn = 0
         gs.nightmare_creep_effect_applied_this_turn = False
         gs.nightmare_creep_skipped_this_turn = False
+
+        # Reset per-turn objective progress trackers
+        gs.objective_progress["max_toy_loops_this_turn"] = 0
+        gs.objective_progress["toy_loop_counts"] = {}
+        gs.objective_progress["different_spells_cast_this_turn"] = set()
 
         # Mana Gain Logic
         mana_this_turn = gs.current_turn + STANDARD_MANA_GAIN_PER_TURN_BASE

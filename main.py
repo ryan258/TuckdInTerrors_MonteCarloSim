@@ -13,6 +13,7 @@ from src.tuck_in_terrors_sim.simulation.simulation_runner import SimulationRunne
 from src.tuck_in_terrors_sim.simulation.data_logger import DataLogger
 from src.tuck_in_terrors_sim.simulation.analysis_engine import AnalysisEngine
 from src.tuck_in_terrors_sim.simulation.visualizer import Visualizer
+from src.tuck_in_terrors_sim.simulation.balance_analyzer import BalanceAnalyzer
 from src.tuck_in_terrors_sim.game_elements.data_loaders import load_all_game_data
 
 
@@ -66,6 +67,7 @@ def main_cli():
     parser.add_argument("--visualize", action="store_true", help="Generate and save plots of the simulation results.")
     parser.add_argument("--output-dir", type=str, default="results", help="Directory to save output files (JSON, plots).")
     parser.add_argument("--deep-dive", type=int, metavar='N', default=0, help="Run N simulations with detailed turn-by-turn logging before the main batch.")
+    parser.add_argument("--balance-report", action="store_true", help="Generate a comprehensive game balance analysis report.")
 
     args = parser.parse_args()
 
@@ -108,6 +110,26 @@ def main_cli():
         results_data = logger.get_results()
         if results_data:
             analyzer.calculate_and_print_summary(results_data)
+
+            # Generate balance report if requested
+            if args.balance_report:
+                print("\n" + "="*80)
+                print("GENERATING GAME BALANCE ANALYSIS REPORT")
+                print("="*80 + "\n")
+                balance_analyzer = BalanceAnalyzer()
+                balance_analyzer.add_results(results_data)
+                balance_report = balance_analyzer.generate_balance_report(args.objective)
+                print(balance_report)
+
+                # Save balance report to file
+                if args.output_dir:
+                    balance_file = os.path.join(args.output_dir, f"balance_report_{args.objective}_{args.ai}.txt")
+                    try:
+                        with open(balance_file, 'w', encoding='utf-8') as f:
+                            f.write(balance_report)
+                        print(f"\nBalance report saved to: {balance_file}")
+                    except Exception as e:
+                        print(f"Error saving balance report: {e}")
 
             if args.output_file:
                 filename = os.path.basename(args.output_file)
